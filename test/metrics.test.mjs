@@ -105,3 +105,37 @@ test('monthly check grades verified cycle USDC spend and distinguishes a late bu
   const unresolved = makeSnapshot(protocol, {...burns, buybacks}, context, {now});
   assert.equal(unresolved.checks.find(c => c.id === 'monthly').state, 'pending');
 });
+
+test('window attribution requires independent evidence for every day on each side', () => {
+  const wei = n => String(BigInt(n) * 10n ** 18n);
+  const days = rows.map((day,i) => ({...day, blockHash:'0x'+String(i).padStart(64,'0'), flowsVerified:true,
+    mintStakers:95, mintVenice:5, mintOther:0, raw:{dailyBurned:wei(day.dailyBurned)}}));
+  const labels = days.slice(-30).map(day => ({date:day.date,blockHash:day.blockHash,fromBlock:day.fromBlock,toBlock:day.toBlock,
+    burnSales:20,burnMonthly:12,burnOther:1,raw:{salesVvv:wei(20),monthlyVvv:wei(12),otherVvv:wei(1),balanceChangeVvv:wei(33),
+      openingUsdc:'1000000',incomingUsdc:'150',closingUsdc:'1000000',recognizedUsdc:'150',unknownUsdc:'0'}}));
+  const build = () => makeSnapshot({...protocol,days},{...burns,sales:{days:labels}},context,{now}).supply.windows;
+  let windows = build();
+  assert.deepEqual(windows[30].issuanceAttribution,{mintVenice:150,mintStakers:2850,mintOther:0});
+  assert.deepEqual(windows[30].burnAttribution,{burnSales:600,burnMonthly:360,burnOther:30});
+  assert.deepEqual(windows[90].issuanceAttribution,{mintVenice:450,mintStakers:8550,mintOther:0});
+  assert.equal(windows[90].burnAttribution,null);
+  days.at(-1).flowsVerified = false;
+  windows = build();
+  assert.equal(windows[30].issuanceAttribution,null);
+  assert.equal(windows[30].burnAttribution.burnMonthly,360);
+  assert.equal(windows[30].minted,3000);
+  labels.at(-1).blockHash='mismatched boundary';
+  assert.equal(build()[30].burnAttribution,null);
+  labels.at(-1).blockHash=days.at(-1).blockHash;
+  labels.at(-1).raw.recognizedUsdc='149';
+  assert.equal(build()[30].burnAttribution,null);
+});
+
+test('an apparent purchase pause requires known zero unmatched and unpaired counts', () => {
+  const day={date:end,estimatedUsd:0,burnUsdc:0,confirmedBurnEvents:0,unknown:0,unpairedPoolBurns:0};
+  const state = row => makeSnapshot(protocol,{...burns,sales:{days:[row]}},context,{now}).checks.find(c=>c.id==='sales').state;
+  assert.equal(state(day),'alert');
+  assert.equal(state({...day,unpairedPoolBurns:1}),'pending');
+  assert.equal(state({...day,unpairedPoolBurns:undefined}),'pending');
+  assert.equal(state({...day,unknown:1}),'pending');
+});

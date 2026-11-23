@@ -1,0 +1,86 @@
+name: VVV Watch
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vvvwatch-main
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      issues: write
+    outputs:
+      degraded: ${{ steps.refresh.outputs.degraded }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - run: npm test
+      - name: Refresh completed UTC days
+        id: refresh
+        if: github.event_name != 'push'
+        env:
+          BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+        run: |
+          result=0
+          npm run snapshot || result=$?
+          if [ "$result" = 2 ]; then
+            echo "degraded=true" >> "$GITHUB_OUTPUT"
+          elif [ "$result" != 0 ]; then
+            exit "$result"
+          fi
+      - run: npm run build
+      - name: Commit verified evidence and alert state
+        if: github.event_name != 'push'
+        run: |
+          git add data/
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m "Update evidence through $(node -p "require('./data/latest.json').lastDay")"
+            git push
+          fi
+      - name: Package Pages site
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: dist
+      - name: Deliver durable issue alerts
+        if: github.event_name != 'push'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/issues.mjs
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+  freshness:
+    if: needs.build.outputs.degraded == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::A collector failed. The site retains and dates its last verified readings."
+          exit 1

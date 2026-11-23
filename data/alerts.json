@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "states": {
+    "cover": {
+      "state": "alert",
+      "incident": null
+    },
+    "sales": {
+      "state": "healthy",
+      "incident": null
+    },
+    "monthly": {
+      "state": "healthy",
+      "incident": null
+    },
+    "exits": {
+      "state": "healthy",
+      "incident": null
+    },
+    "diem": {
+      "state": "healthy",
+      "incident": null
+    },
+    "venice": {
+      "state": "healthy",
+      "incident": null
+    },
+    "burnWalletRunway": {
+      "baselineLow": false,
+      "observations": {}
+    }
+  },
+  "cursors": {
+    "monthly": "2026-11-22",
+    "rules": "2026-11-22",
+    "evidenceFrom": "2026-11-22"
+  },
+  "issues": {}
+}

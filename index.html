@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f1efe8">
+  <meta name="color-scheme" content="light dark">
+  <title>VVV watch · Venice token economics</title>
+  <meta name="description" content="A daily ledger of Venice's VVV emissions, burns and buybacks, the inference credits behind DIEM, and changes to the rules on Base.">
+  <meta property="og:title" content="VVV watch · Venice token economics">
+  <meta property="og:description" content="Follow VVV burns against issuance, monthly buybacks, DIEM and the rules behind them.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://provatidis.github.io/vvvwatch/assets/social-card.png">
+  <meta property="og:image:alt" content="VVV watch, a daily tracker of Venice token economics, with a Venetian tide gauge.">
+  <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
+  <link rel="preload" href="./assets/fonts/inter-tight-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./assets/fonts/instrument-serif-latin-400-italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./data/latest.json" as="fetch" crossorigin="anonymous">
+  <script>
+    (() => {
+      let theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      try { const saved = localStorage.getItem('ap-theme'); if (saved === 'dark' || saved === 'light') theme = saved; } catch {}
+      document.documentElement.dataset.theme = theme;
+      document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#0b1517' : '#f1efe8';
+    })();
+  </script>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" type="module"></script>
+</head>
+<body id="top">
+<a class="skip" href="#main">Skip to content</a>
+<header class="masthead wrap">
+  <a class="identity" href="#top" aria-label="VVV watch, back to top"><svg class="brand-mark" viewBox="0 0 42 42" fill="none" aria-hidden="true"><path class="mark-pole" d="M21 2v37M8 6l13 8L34 6M8 14l13 8 13-8M8 22l13 8 13-8"/><path class="waterline" d="M2 23h12m13 0h13"/></svg><span>VVV <em>watch</em></span></a>
+  <nav class="primary-nav" aria-label="Dashboard sections"><a href="#ledger">Supply ledger</a><a href="#buybacks">Buybacks</a><a href="#diem">DIEM</a><a href="#rules">Rules</a></nav>
+  <a class="repo-link" href="https://github.com/provatidis/vvvwatch" aria-label="View source on GitHub">Source <span aria-hidden="true">↗</span></a>
+  <button class="theme" id="theme" type="button" aria-label="Switch theme" hidden><svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.1A8.9 8.9 0 0 1 9.9 3.5 8.8 8.8 0 1 0 20.5 14.1Z"/></svg><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></svg></button>
+</header>
+<main class="wrap" id="main" tabindex="-1">
+  <div class="error" id="error" role="status" hidden></div>
+  <noscript><p>This dashboard uses JavaScript to read its <a href="./data/latest.json">daily snapshot</a>.</p></noscript>
+  <section class="hero" aria-labelledby="title">
+    <div class="hero-copy"><div class="eyeline"><span class="tag-dot"></span>Venice AI <span class="slash">/</span> Base</div><h1 id="title">VVV <em>watch.</em></h1><p class="intro">Venice buys and burns VVV as customers pay for AI. Staking issues new VVV. This tracker measures how much of that issuance the burns offset.</p><p class="asof" id="asof" role="status">Loading daily snapshot…</p></div>
+    <div class="feature" aria-labelledby="cover-title"><div class="feature-top"><h2 id="cover-title">Burn cover <span> / 90 days</span></h2><span id="cover-grade"></span></div><div class="feature-content"><div><strong class="hero-number" id="cover-value">—</strong><p id="cover-note">Burned VVV per token minted</p></div><div class="gauge" id="gauge" aria-hidden="true"></div></div><div class="feature-foot"><span>Break-even <b>1.00×</b></span><a href="#ledger">View ledger <span aria-hidden="true">↓</span></a></div></div>
+  </section>
+  <div id="overview" class="metric-strip" aria-label="Snapshot figures"></div>
+  <section class="section" id="checks" aria-labelledby="checks-title"><div class="section-head"><div><h2 id="checks-title">Thesis <em>checks.</em></h2><p>Six signals behind the VVV and DIEM holder case.</p></div></div><div id="check-list" class="check-grid"></div></section>
+  <section class="section" id="ledger" aria-labelledby="ledger-title"><div class="section-head"><div><h2 id="ledger-title">Supply <em>ledger.</em></h2><p>New VVV minted on Base and tokens permanently retired during the period.</p></div><div class="seg" role="group" aria-label="Supply ledger window"><button type="button" data-ledger-days="30" aria-pressed="false">30 days</button><button type="button" data-ledger-days="90" aria-pressed="true">90 days</button></div></div><div class="ledger-grid"><article class="panel" id="ledger-summary" aria-live="polite"></article><article class="panel" id="ledger-trend"></article></div><p class="source-note" id="ledger-source"></p></section>
+  <section class="section" id="buybacks" aria-labelledby="buyback-title"><div class="section-head"><div><h2 id="buyback-title">Monthly <em>buybacks.</em></h2><p>Follow the Safe’s VVV inventory from purchases through each monthly burn.</p></div></div><div class="panel" id="buyback-panel"></div></section>
+  <section class="section" id="sales" aria-labelledby="sales-title"><div class="section-head"><div><h2 id="sales-title">Signup and credit <em>purchases.</em></h2><p>Qualifying subscription and API credit purchases inferred from Venice’s buy-and-burn transactions.</p></div></div><div class="panel" id="sales-panel"></div></section>
+  <section class="section" id="diem" aria-labelledby="diem-title"><div class="section-head"><div><h2 id="diem-title">Inside <em>DIEM.</em></h2><p>Locking staked VVV mints DIEM. Each DIEM staked for inference provides $1 of Venice API credit each day.</p></div></div><div class="panel" id="diem-panel"></div></section>
+  <section class="section" id="treasury" aria-labelledby="treasury-title"><div class="section-head"><div><h2 id="treasury-title">Staking and <em>treasury.</em></h2><p>VVV held in stake, locked behind DIEM, and held by the tracked treasury wallets.</p></div></div><div class="panel" id="treasury-panel"></div></section>
+  <section class="section" id="markets" aria-labelledby="market-title" hidden><div class="section-head"><div><h2 id="market-title">Market <em>liquidity.</em></h2><p>VVV and DIEM trading pools on Base.</p></div></div><div class="panel" id="markets-panel"></div></section>
+  <section class="section" id="rules" aria-labelledby="rules-title"><div class="section-head"><div><h2 id="rules-title">Rules and <em>control.</em></h2><p>Contract settings, administrative control and the changes recorded on Base.</p></div></div><div class="panel" id="rules-panel"></div></section>
+</main>
+<footer class="wrap"><div><a class="footer-brand" href="#top">VVV <em>watch.</em></a><p>By <a href="https://provatidis.com/">Apostolos Provatidis</a>. Independent of Venice.ai. Not financial advice.</p></div><div class="footer-links"><a href="https://venice.ai/token">Venice dashboard ↗</a><a href="https://github.com/provatidis/vvvwatch">Method &amp; source ↗</a><a href="./data/latest.json">Snapshot JSON ↗</a><a href="https://overwatch.day/">OVER watch ↗</a></div></footer>
+</body>
+</html>

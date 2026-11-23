@@ -100,3 +100,13 @@ h1 { letter-spacing: 0; }
 @media(max-width:680px){.holders-grid,.calc,.calc-columns{grid-template-columns:1fr}.calc{gap:12px}}
 
 .not-found { padding-block: clamp(48px, 10vw, 128px); }
+
+@media (prefers-color-scheme: dark) {
+  :root.not-found-page:not([data-theme]) {
+    color-scheme: dark;
+    --paper: #0b1517;
+    --ink: #eef2e9;
+    --teal: #70d4c7;
+    --rule: #364849;
+  }
+}

@@ -1,10 +1,24 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="not-found-page">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#f1efe8">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f1efe8">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b1517">
+  <script>
+    try {
+      const saved = localStorage.getItem('ap-theme');
+      if (saved === 'light' || saved === 'dark') {
+        document.documentElement.dataset.theme = saved;
+        for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+          if (meta.media === `(prefers-color-scheme: ${saved})`) meta.removeAttribute('media');
+          else meta.remove();
+        }
+      }
+    } catch { /* System colors still apply when storage is unavailable. */ }
+  </script>
   <title>Page not found · VVV watch</title>
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg?v=2">
   <link rel="stylesheet" href="/styles.css">

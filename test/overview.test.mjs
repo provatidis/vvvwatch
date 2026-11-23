@@ -39,7 +39,11 @@ test('the static build serves dated readings and escapes snapshot text in the in
   assert.ok(html.includes('Cash $&amp; and &quot;$1&quot;.'));
   assert.doesNotMatch(html, /Loading daily snapshot|<!--snapshot:/);
   assert.equal(await readFile(join(dir, 'dist/data/latest.json'), 'utf8'), json);
-  assert.match(await readFile(join(dir, 'dist/404.html'), 'utf8'), /href="\/"/);
+  const notFound = await readFile(join(dir, 'dist/404.html'), 'utf8');
+  assert.match(notFound, /href="\/"/);
+  for (const scheme of ['light', 'dark']) {
+    assert.ok(notFound.includes(`media="(prefers-color-scheme: ${scheme})"`));
+  }
 });
 
 test('partial snapshots keep missing figures and grades explicit', () => {

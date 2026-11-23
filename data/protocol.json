@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T15:20:49.170Z",
+  "generatedAt": "2026-11-23T15:46:53.500Z",
   "lastDay": "2026-11-22",
   "source": {
     "name": "Base mainnet · finalized UTC closing blocks",
@@ -9165,13 +9165,103 @@
     },
     "changes": [
       {
+        "date": "2025-08-20",
+        "block": 34455099,
+        "blockHash": "0xd6b7fabac39534dbd0dd25a16185675c496a7042c148fd9bfae943e1158c7e00",
+        "logIndex": 148,
+        "tx": "0x06d3e5fd3e29d971074631f258041b24287f4f8e8efea14d206149d5b9590692",
+        "id": "emissionRatePerYear",
+        "from": 14000000,
+        "to": 9993155.37303217,
+        "raw": {
+          "fromWeiPerSecond": "443937087772704211",
+          "toWeiPerSecond": "316880878140289502"
+        }
+      },
+      {
+        "date": "2025-10-23",
+        "block": 37229573,
+        "blockHash": "0x7f291eefd8d89d5ed13840abf04a72446ff4f391c63fabcf963bade06c6e37f4",
+        "logIndex": 376,
+        "tx": "0xe3a3e13a9c5e1661c40a5c9782167e9861a860a42b5d6f162b06cb20aea9f12c",
+        "id": "emissionRatePerYear",
+        "from": 9993155.37303217,
+        "to": 8000000.000942401,
+        "raw": {
+          "fromWeiPerSecond": "316880878140289502",
+          "toWeiPerSecond": "253678335900000000"
+        }
+      },
+      {
+        "date": "2026-02-11",
+        "block": 42018042,
+        "blockHash": "0xc1ffa15b1015767c3bd215ce05b2686acebc072b6de3a93c1c19434c17c452dc",
+        "logIndex": 1243,
+        "tx": "0x424dd14ac00569f5e0d768a3a45459d2248567f3b8665a337131cd2235939b6d",
+        "id": "emissionRatePerYear",
+        "from": 8000000.000942401,
+        "to": 6000000,
+        "raw": {
+          "fromWeiPerSecond": "253678335900000000",
+          "toWeiPerSecond": "190258751902587519"
+        }
+      },
+      {
+        "date": "2026-05-01",
+        "block": 45427555,
+        "blockHash": "0x1a3b5e6f676087a2f70cafab28114b9abf4e867911a4888da923753f3ae31913",
+        "logIndex": 527,
+        "tx": "0x63ee397744efb3e8ef90a768fb90670da3636f5d70933d69274c5abdc5d1e741",
+        "id": "emissionRatePerYear",
+        "from": 6000000,
+        "to": 4999999.999999999,
+        "raw": {
+          "fromWeiPerSecond": "190258751902587519",
+          "toWeiPerSecond": "158548959918822912"
+        }
+      },
+      {
+        "date": "2026-06-01",
+        "block": 46768600,
+        "blockHash": "0x257b24698668919ea58f04db3646fa309977e2416aee046c97018684e962f0de",
+        "logIndex": 348,
+        "tx": "0x8fedfafcdf42fbb0ef74a4d7d13c17bdb90943704a60cc7263298ada29ea3243",
+        "id": "emissionRatePerYear",
+        "from": 4999999.999999999,
+        "to": 4000000,
+        "raw": {
+          "fromWeiPerSecond": "158548959918822912",
+          "toWeiPerSecond": "126839167935058336"
+        }
+      },
+      {
+        "date": "2026-07-01",
+        "block": 48063121,
+        "blockHash": "0x0beb209f093ff53625404cfe0258a7b40bbfb8f1da655ce8d8cb371ae2d81dd1",
+        "logIndex": 488,
+        "tx": "0xabe2ca8a4cd4038b8451e3c90de6be17508ff0b8adc0cd387e2c93df4b5a9747",
+        "id": "emissionRatePerYear",
+        "from": 4000000,
+        "to": 3000000,
+        "raw": {
+          "fromWeiPerSecond": "126839167935058336",
+          "toWeiPerSecond": "95129375951293760"
+        }
+      },
+      {
         "date": "2026-08-03",
         "block": 49493476,
         "logIndex": 268,
         "id": "curveHash",
         "from": "9d6b3c9d2a985ab4d34c16d8d5c6038e5a76377ab0f7cd4686648f7cb89c4238",
         "to": "7a47ff5a356e46960ba7a6a774815786c9af8bda277717ad86ee032821955bb4",
-        "tx": "0x50f788fa3d85df08a3036de164ddbcb0731d4861edd787a8a570b795dd4dae6d"
+        "tx": "0x50f788fa3d85df08a3036de164ddbcb0731d4861edd787a8a570b795dd4dae6d",
+        "policyTarget": {
+          "from": 38000,
+          "to": 38500,
+          "sourceLabel": "Venice schedule",
+          "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
+        }
       },
       {
         "date": "2026-08-17",
@@ -9180,7 +9270,13 @@
         "id": "curveHash",
         "from": "7a47ff5a356e46960ba7a6a774815786c9af8bda277717ad86ee032821955bb4",
         "to": "52d466e0bcb8aae8eb44ee2d8a4b7951636a10bec2881d363132199e4185047d",
-        "tx": "0x886145f8ed0652c7011c60925035e51547cd601f32d4b499abfbc656a0da33fb"
+        "tx": "0x886145f8ed0652c7011c60925035e51547cd601f32d4b499abfbc656a0da33fb",
+        "policyTarget": {
+          "from": 38500,
+          "to": 39000,
+          "sourceLabel": "Venice schedule",
+          "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
+        }
       },
       {
         "date": "2026-08-31",
@@ -9189,16 +9285,27 @@
         "id": "curveHash",
         "from": "52d466e0bcb8aae8eb44ee2d8a4b7951636a10bec2881d363132199e4185047d",
         "to": "687b286cd678a64d5562a269e81cccae9d74b323c70bbc52754924693b7933d2",
-        "tx": "0x8ae564e1163b32927ea2a485300c1cd7b23e9ae68801ed7af34d35251f57ba54"
+        "tx": "0x8ae564e1163b32927ea2a485300c1cd7b23e9ae68801ed7af34d35251f57ba54",
+        "policyTarget": {
+          "from": 39000,
+          "to": 39500,
+          "sourceLabel": "Venice schedule",
+          "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
+        }
       },
       {
         "date": "2026-09-01",
         "block": 50745796,
+        "blockHash": "0x9f4d87c0343e413d3f7db3278a521f3c625b79f199bbaaf39fd8f218e0512014",
         "logIndex": 92,
+        "tx": "0x5750a5fb05993c4ca146c17eed4cf59320c9641140951fe8179a77c87ae24618",
         "id": "emissionRatePerYear",
         "from": 3000000,
         "to": 2500000,
-        "tx": "0x5750a5fb05993c4ca146c17eed4cf59320c9641140951fe8179a77c87ae24618"
+        "raw": {
+          "fromWeiPerSecond": "95129375951293760",
+          "toWeiPerSecond": "79274479959411466"
+        }
       },
       {
         "date": "2026-09-14",
@@ -9207,31 +9314,81 @@
         "id": "curveHash",
         "from": "687b286cd678a64d5562a269e81cccae9d74b323c70bbc52754924693b7933d2",
         "to": "9622b343be12a12a0559c4f05a7c35acc822e27ddf79c88b4967b385947b6d6a",
-        "tx": "0x7398616bc77e480cca19624270e66b0a9ea7219ab782263d1c6f2993f59475ee"
+        "tx": "0x7398616bc77e480cca19624270e66b0a9ea7219ab782263d1c6f2993f59475ee",
+        "policyTarget": {
+          "from": 39500,
+          "to": 40000,
+          "sourceLabel": "Venice schedule",
+          "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
+        }
       },
       {
         "date": "2026-10-01",
         "block": 52037242,
+        "blockHash": "0x819f58898c9c137154c7e6d36bab9797b659eeae586d49e0b89f2e8308980d75",
         "logIndex": 949,
+        "tx": "0xe7297702f9dfd683c9c645e3abb49888addd3e47e2d1fdebf89c6349008a2799",
         "id": "emissionRatePerYear",
         "from": 2500000,
         "to": 2000000,
-        "tx": "0xe7297702f9dfd683c9c645e3abb49888addd3e47e2d1fdebf89c6349008a2799"
+        "raw": {
+          "fromWeiPerSecond": "79274479959411466",
+          "toWeiPerSecond": "63419583967529173"
+        }
       }
     ]
   },
   "policy": [
     {
-      "date": "2025-10-23",
-      "kind": "emissions",
-      "label": "Emission rate reduced to about 8M VVV per year",
-      "tx": "0xe3a3e13a9c5e1661c40a5c9782167e9861a860a42b5d6f162b06cb20aea9f12c"
+      "date": "2025-01-27",
+      "kind": "launch",
+      "label": "VVV launched with 100M tokens and an initial issuance rate of 14M VVV per year.",
+      "sourceLabel": "Venice launch announcement",
+      "sourceUrl": "https://venice.ai/blog/introducing-the-venice-token-vvv"
     },
     {
-      "date": "2026-02-11",
+      "date": "2025-03-12",
+      "kind": "airdrop",
+      "label": "Venice burned 32,509,739 unclaimed airdrop VVV.",
+      "tx": "0xf5a19b79b13274faf19c46b404a36699990cad18e907aece0ab26671ff4a37af",
+      "sourceLabel": "Venice burn announcement",
+      "sourceUrl": "https://venice.ai/blog/venice-is-burning"
+    },
+    {
+      "date": "2025-03-12",
+      "kind": "buyback",
+      "label": "Venice burned another 1,030,001 VVV after buying back team tokens.",
+      "tx": "0x9d0007242ccdd4ad12c5aa293e92a304eea202f55e0b437d9fa1ac6286aa8147",
+      "sourceLabel": "Venice burn announcement",
+      "sourceUrl": "https://venice.ai/blog/venice-is-burning"
+    },
+    {
+      "date": "2025-08-20",
+      "kind": "diem",
+      "label": "Tokenized DIEM launched with a published supply target of 38,000 DIEM.",
+      "sourceLabel": "Venice DIEM launch",
+      "sourceUrl": "https://venice.ai/changelog/2025-08"
+    },
+    {
+      "date": "2026-04-15",
+      "kind": "subscriptions",
+      "label": "Venice announced programmatic VVV buybacks and burns on new subscriptions.",
+      "sourceLabel": "Venice subscription policy",
+      "sourceUrl": "https://venice.ai/blog/programmatic-vvv-buy-and-burn"
+    },
+    {
+      "date": "2026-07-17",
+      "kind": "credits",
+      "label": "Venice added a $5 VVV burn per $100 of API credits purchased and announced four increases in the DIEM supply target.",
+      "sourceLabel": "Venice credit and DIEM policy",
+      "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
+    },
+    {
+      "date": "2026-08-05",
       "kind": "emissions",
-      "label": "Emission rate reduced to 6M VVV per year",
-      "tx": "0x424dd14ac00569f5e0d768a3a45459d2248567f3b8665a337131cd2235939b6d"
+      "label": "Venice announced two further 500,000 VVV cuts to annual emissions, scheduled for September 1 and October 1.",
+      "sourceLabel": "Venice policy update",
+      "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
     }
   ],
   "repairCursor": "2026-07-18"

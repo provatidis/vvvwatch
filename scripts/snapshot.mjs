@@ -4,6 +4,8 @@ import { makeSnapshot } from '../lib/metrics.js';
 import { planAlerts } from '../lib/alerts.js';
 import { dataFile, readJSON, saveJSON } from './files.mjs';
 import { collectContext } from './context.mjs';
+import { collectWallets } from './wallets.mjs';
+import { createRpc } from './rpc.mjs';
 
 const failures = [];
 if (!process.argv.includes('--compose-only')) {
@@ -22,9 +24,19 @@ const [protocol, rawBurns, previous, journal] = await Promise.all([
   readJSON(dataFile('latest.json'), null), readJSON(dataFile('alerts.json'), null)
 ]);
 const context = await collectContext(previous, protocol.lastDay);
+const cached = previous?.treasury;
+try {
+  context.wallets = await collectWallets(createRpc(), protocol);
+} catch (error) {
+  console.warn('Wallet coverage: ' + error.message);
+  failures.push('wallets');
+  context.wallets = cached?.wallets?.length ? {asOf:cached.walletsAsOf,block:cached.walletsBlock,startBlock:cached.walletsStartBlock,
+    wallets:cached.wallets,trackedSafeTotal:cached.trackedSafeTotal,trackedSafeChange30:cached.trackedSafeChange30} : null;
+}
 const latest = makeSnapshot(protocol, rawBurns, context, {failures});
 const alerts = planAlerts(journal, latest);
-await saveJSON(dataFile('latest.json'), latest);
+const {alertEvidence, ...dashboard} = latest;
+await saveJSON(dataFile('latest.json'), dashboard, {compact:true});
 await saveJSON(dataFile('alerts.json'), alerts);
 console.log('Supply through ' + latest.lastDay + ', purchases through ' + latest.sales.asOf + '.');
 for (const check of latest.checks) console.log(check.state + ' | ' + check.title + ' | ' + check.text);

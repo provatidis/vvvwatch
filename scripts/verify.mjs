@@ -3,6 +3,8 @@ import { DEAD, VVV, ZERO } from '../lib/config.js';
 import { dayOffset } from '../lib/metrics.js';
 import { dataFile, readJSON } from './files.mjs';
 import { addressWord, createRpc, hex } from './rpc.mjs';
+import { deploymentBlock, emissionTopic, verifyHistoricalEmissions } from './historical-rules.mjs';
+import { readLogRanges } from './protocol.mjs';
 
 // Read the token itself at each boundary, independently of the event collectors.
 const rpc = createRpc();
@@ -38,4 +40,22 @@ for (const [days, window] of Object.entries(snapshot.supply.windows)) {
     assert(Math.abs(tokens - window[key]) < 0.000001, days + '-day ' + key + ' disagrees with Base');
   }
   console.log(days + ' days verified against Base blocks ' + window.startBlock + ' and ' + window.endBlock);
+}
+
+if (process.argv.includes('--rules') || process.argv.includes('--scan-rules')) {
+  await verifyHistoricalEmissions(rpc);
+  console.log('Historical emission receipts and their previous and new contract rates verified.');
+}
+if (process.argv.includes('--scan-rules')) {
+  const logs = await readLogRanges(rpc, { fromBlock: deploymentBlock, toBlock: snapshot.evidence.endBlock }, [
+    { address: VVV.staking, topics: [emissionTopic] }
+  ]);
+  const recorded = snapshot.rules.changes.filter(change => change.id === 'emissionRatePerYear' && change.tx)
+    .map(change => change.tx + '/' + change.logIndex).sort();
+  const observed = logs.map(log => {
+    assert(!log.removed && log.address.toLowerCase() === VVV.staking.toLowerCase() && log.topics[0] === emissionTopic);
+    return log.transactionHash + '/' + Number(BigInt(log.logIndex));
+  }).sort();
+  assert.deepEqual(observed, recorded, 'Emission history differs from the full proxy event log');
+  console.log(observed.length + ' rate changes across Base blocks ' + deploymentBlock + '–' + snapshot.evidence.endBlock);
 }

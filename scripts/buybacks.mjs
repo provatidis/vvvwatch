@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { VENICE, VVV, SALES, ZERO, DEAD } from '../lib/config.js';
 import { decodeLogs, filters, reconcileCycle, topic, transfer } from './burn-events.mjs';
 import { addressWord, hex, readContractWords } from './rpc.mjs';
+import { burnValueUsd } from '../lib/burn-value.js';
+import { readBurnValuation } from './burn-valuation.mjs';
 
 const safe = VENICE.buybackSafe.toLowerCase();
 const service = 'https://api.safe.global/tx-service/base/api/v1/safes/0x35Fb3b67C57849Bf57EB24b061EEF0B5E560dc57/transfers/';
@@ -159,6 +161,15 @@ export async function collectBuybacks(rpc, lastDay, endBlock, existing={}) {
     } catch(e) {
       console.warn('Safe cycle ' + current.date + ': ' + e.message);
       cycles[i]={...current,verificationError:e.message};
+    }
+  }
+  for (const cycle of cycles) {
+    if (burnValueUsd(cycle) != null) continue;
+    try {
+      cycle.valuation = await readBurnValuation(rpc,cycle);
+    } catch (error) {
+      cycle.valuation = null;
+      console.warn('Missing burn-block valuation on ' + cycle.date + ': ' + error.message);
     }
   }
   return {asOf:lastDay,endBlock,cycles};

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { VVV, VENICE, ZERO, DEAD, SALES, RULES, IMPL_SLOT, POLICY_LOG } from '../lib/config.js';
 import { addressWord, hex, word, readContractWords } from './rpc.mjs';
+import { emissionTopic, historicalEmissions, labelCurveChange } from './historical-rules.mjs';
 
 const UNIT = 10n ** 18n;
 const YEAR = 365 * 86400;
@@ -214,7 +215,7 @@ export function decodeFlows(logs, row, previous) {
     flowsVerified: true
   };
 }
-async function readLogRanges(rpc, row, filters) {
+export async function readLogRanges(rpc, row, filters) {
   const logs = [];
   async function read(filter, from, to) {
     let rows;
@@ -314,9 +315,15 @@ export function composeProtocol(rows, ruleSnapshot, priorRules) {
         knownLogs.set(key, changes.length);
         changes.push(event);
       } else if (event.from !== null) {
-        changes[knownLogs.get(key)] = event;
+        changes[knownLogs.get(key)] = { ...changes[knownLogs.get(key)], ...event };
       }
     }
+  for (const checkpoint of historicalEmissions) {
+    if (checkpoint.block > last.toBlock) continue;
+    const key = checkpoint.tx + '/' + checkpoint.logIndex;
+    if (knownLogs.has(key)) changes[knownLogs.get(key)] = checkpoint;
+    else changes.push(checkpoint);
+  }
   const sourced = new Set(changes.filter((c) => c.tx).map((c) => c.date + '/' + c.id));
   const keys = new Set(changes.map((c) => c.date + '/' + c.id + '/' + JSON.stringify(c.to)));
   function record(row, id, from, to) {
@@ -361,14 +368,15 @@ export function composeProtocol(rows, ruleSnapshot, priorRules) {
       ...(ruleSnapshot || priorRules || { asOf: last.date, block: last.toBlock, values: last.parameters }),
       changes: changes
         .filter((c) => c.tx || !sourced.has(c.date + '/' + c.id))
+        .map(labelCurveChange)
         .sort((a, b) => a.block - b.block || (a.logIndex ?? 0) - (b.logIndex ?? 0))
     },
-    policy: POLICY_LOG
+    policy: POLICY_LOG.filter((event) => event.date <= last.date)
   };
 }
 
 const governanceTopics = {
-  '0xffcc630bf88a67ba7c8b27440787c31777ae923aee1e9bbd0127feea56da2cd0': 'emissionRatePerYear',
+  [emissionTopic]: 'emissionRatePerYear',
   '0x3fa751adc7d77b89491ef674a701215e6998cd5d3d73b083cc69e15c85f0790d': 'venicePct',
   '0x38a604e8a36592c14768cd04d016e8f0be9e11c140f1643cd8d4266f9e28e9e4': 'venicePctLocked',
   '0x3b919acbae27b7c60197957a5423655702d842fcc85c19c7631dc1c777f478f5': 'cooldown',

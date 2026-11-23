@@ -28,6 +28,10 @@
     "burnWalletRunway": {
       "baselineLow": false,
       "observations": {}
+    },
+    "trackedSafes": {
+      "state": "healthy",
+      "incident": null
     }
   },
   "cursors": {

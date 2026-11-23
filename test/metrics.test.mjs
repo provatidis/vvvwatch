@@ -93,17 +93,26 @@ test('reported consumption excludes the in-progress epoch and requires seven dis
   assert.throws(() => summarizedUsage({...data, days: days.slice(1)}, end));
 });
 
-test('monthly check grades verified cycle USDC spend and distinguishes a late burn', () => {
-  const cycle = (date, block, spentUsdc) => ({date, block, spentUsdc, burnedVvv: 100, verified: true});
-  const buybacks = {asOf: end, cycles: [cycle('2026-10-07', 30, 269061), cycle('2026-11-09', 60, 555096)]};
-  const current = makeSnapshot(protocol, {...burns, buybacks}, context, {now});
-  assert.equal(current.checks.find(c => c.id === 'monthly').state, 'healthy');
-  buybacks.cycles[1].spentUsdc = 100_000;
-  const smaller = makeSnapshot(protocol, {...burns, buybacks}, context, {now});
-  assert.equal(smaller.checks.find(c => c.id === 'monthly').state, 'alert');
-  buybacks.cycles[1].verified = false;
-  const unresolved = makeSnapshot(protocol, {...burns, buybacks}, context, {now});
-  assert.equal(unresolved.checks.find(c => c.id === 'monthly').state, 'pending');
+test('monthly check grades burn value, including inventory-funded burns, and monitors timing without quotes', () => {
+  const cycle = (date,block,usd,spentUsdc) => ({date,block,blockHash:'hash-'+block,spentUsdc,
+    burnedVvv:100,burnVerified:true,verified:false,valuation:{block,blockHash:'hash-'+block,usd,priceUsd:usd/100}});
+  const prior = cycle('2026-09-08',30,100_000,200_000), latest = cycle('2026-11-09',60,105_000,0);
+  const buybacks = {asOf:end, cycles:[prior, latest]};
+  const check = () => makeSnapshot(protocol,{...burns,buybacks},context,{now}).checks.find(c=>c.id==='monthly');
+  assert.equal(check().state,'healthy');
+  assert.match(check().text,/9 Nov 2026/);
+  latest.spentUsdc = 500_000;
+  latest.valuation.usd = 59_000;
+  latest.valuation.priceUsd = 590;
+  assert.equal(check().state,'alert');
+  prior.valuation = null;
+  assert.equal(check().state,'pending');
+  assert.equal(check().value,null);
+  latest.date=dayOffset(end,-36);
+  assert.equal(check().state,'watch');
+  latest.date=dayOffset(end,-46);
+  assert.equal(check().state,'alert');
+  assert.match(check().text,/46 days ago/);
 });
 
 test('window attribution requires independent evidence for every day on each side', () => {
@@ -138,4 +147,28 @@ test('an apparent purchase pause requires known zero unmatched and unpaired coun
   assert.equal(state({...day,unpairedPoolBurns:1}),'pending');
   assert.equal(state({...day,unpairedPoolBurns:undefined}),'pending');
   assert.equal(state({...day,unknown:1}),'pending');
+});
+
+test('purchase pace and burn shares use the same complete window and require attributable monthly value',()=>{
+  const wei=n=>String(BigInt(n)*10n**18n);
+  const days=rows.slice(-30).map((d,i)=>({...d,blockHash:'hash-'+i,raw:{dailyBurned:wei(33)}}));
+  const sales={days:days.map((d,i)=>({
+    date:d.date,blockHash:d.blockHash,fromBlock:d.fromBlock,toBlock:d.toBlock,estimatedUsd:200,burnUsdc:10,
+    burnSales:i===0?23:33,burnMonthly:i===0?10:0,burnOther:0,
+    raw:{salesVvv:wei(i===0?23:33),monthlyVvv:wei(i===0?10:0),otherVvv:'0',balanceChangeVvv:wei(33),
+      openingUsdc:'100',incomingUsdc:'10',closingUsdc:'100',recognizedUsdc:'10',unknownUsdc:'0'}
+  }))};
+  const block=days[0].fromBlock;
+  const cycle={date:days[0].date,block,blockHash:'burn',burnVerified:true,burnedVvv:10,raw:{burnedVvv:wei(10)},
+    valuation:{block,blockHash:'burn',usd:120,priceUsd:12}};
+  const buybacks={asOf:end,cycles:[cycle]};
+  const window=()=>makeSnapshot({...protocol,days},{...burns,sales,buybacks},context,{now}).sales.window30;
+  assert.equal(window().annualizedUsd,73000);
+  assert.equal(window().programmaticBurnShare,0.05);
+  assert.equal(window().totalBurnShare,0.07);
+  buybacks.cycles=[];
+  assert.equal(window().totalBurnShare,null);
+  buybacks.cycles=[{...cycle,valuation:null}];
+  assert.equal(window().totalBurnShare,null);
+  assert.equal(window().programmaticBurnShare,0.05);
 });

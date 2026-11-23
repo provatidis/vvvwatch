@@ -11,8 +11,8 @@ export async function readJSON(file, fallback) {
   }
 }
 
-export async function saveJSON(file, value) {
+export async function saveJSON(file, value, {compact = false} = {}) {
   const temporary = new URL(file.href + '.' + process.pid + '.tmp');
-  await writeFile(temporary, JSON.stringify(value, null, 2) + '\n');
+  await writeFile(temporary, JSON.stringify(value, null, compact ? undefined : 2) + '\n');
   await rename(temporary, file);
 }

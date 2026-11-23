@@ -31,9 +31,26 @@ const details = (label, content) => `<details><summary>${escape(label)}</summary
 const empty = text => `<p class="empty">${escape(text)}</p>`;
 const list = rows => `<dl class="summary-list">${rows.map(([k,v,cls]) => `<div${cls ? ` class="${cls}"` : ''}><dt>${escape(k)}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
 const utcMidnight = day => Date.parse(`${day}T00:00:00Z`);
+function sourceLink(url, label) {
+  try {
+    const address = new URL(url);
+    if (address.protocol === 'https:') return `<a href="${escape(address.href)}">${escape(label)}</a>`;
+  } catch { /* Older snapshots may lack a source URL. */ }
+  return escape(label);
+}
+
+const why = {
+  cover: 'Burns offset dilution. At 100% cover, they retire one VVV for every new VVV issued.',
+  sales: 'Qualifying purchases fund automatic burns, linking customer activity to demand for VVV.',
+  monthly: 'A monthly burn permanently removes VVV from supply. Its dollar value depends on both the token count and the price at the burn.',
+  exits: 'Tokens entering cooldown can return to circulation after the withdrawal period.',
+  diem: 'Minting DIEM locks staked VVV. A shrinking collateral balance puts more of that stake within reach of withdrawal.',
+  trackedSafes: 'A drop in the combined balance means VVV has moved outside the three tracked Safes after direct emissions are accounted for.',
+  venice: 'Changes in the control Safe show how much VVV Venice holds there after accounting for new emissions.'
+};
 
 let snapshot;
-let selectedDays = 90;
+let selectedDays = 30;
 
 function theme() {
   const toggle = $('theme');
@@ -70,6 +87,15 @@ function renderOverview(s) {
   $('cover-grade').innerHTML = grade(cover?.state);
   $('cover-value').textContent = multiple(w?.ratio,3);
   $('cover-note').textContent = Number.isFinite(w?.ratio) ? `Burns offset ${pct(w.ratio)} of issuance` : 'Awaiting a complete 90-day window';
+  const recent = s.supply?.windows?.['30'];
+  const recentNote = $('cover-recent');
+  recentNote.hidden = !Number.isFinite(recent?.ratio);
+  if (!recentNote.hidden) {
+    const previous = recent.priorRatio;
+    const change = recent.ratio > previous ? 'up from' : recent.ratio < previous ? 'down from' : 'level with';
+    const comparison = Number.isFinite(previous) ? `, ${change} ${pct(previous)} in the prior 30 days` : '';
+    recentNote.innerHTML = `30-day cover <strong>${pct(recent.ratio)}</strong>${comparison}`;
+  }
   $('gauge').innerHTML = drawGauge(w?.ratio);
   const old = Date.now() - utcMidnight(s.lastDay) >= 3 * DAY;
   $('asof').innerHTML = `Data through <strong>${date(s.lastDay)} UTC</strong>${old ? ' · older snapshot' : ''}${s.evidence?.endBlock ? ` · Base block ${blockLink(s.evidence.endBlock)}` : ''}`;
@@ -80,24 +106,36 @@ function renderOverview(s) {
     metric('Effective supply', compact(s.supply?.effective), 'VVV outside burn addresses'),
     metric('Net issuance', signed(w?.net,compact), 'VVV over 90 days'),
     metric('Staked supply', pct(divide(s.supply?.staked,s.supply?.effective)), 'Share of effective VVV'),
-    metric('Purchase estimate', moneyShort(paid?.estimatedUsd), 'Estimated purchases · 30d'),
+    metric('Purchases · 30 days', moneyShort(paid?.estimatedUsd), Number.isFinite(paid?.annualizedUsd) ? `${moneyShort(paid.annualizedUsd)} annualized at list prices` : 'Estimated at list prices'),
     metric('DIEM price', money(diemPrice?.usd,2), diemPrice ? `Quote · ${date(diemPrice.asOf,false)} UTC` : 'Quote unavailable')
   ].join('');
   const order = {alert:0, watch:1, stale:2, pending:3, healthy:4};
   const checks = [...(s.checks || [])].sort((a,b) => (order[a.state] ?? 9) - (order[b.state] ?? 9));
-  $('check-list').innerHTML = checks.length ? checks.map(check => `<article class="check"><div class="check-head"><h3>${escape(check.title)}</h3>${grade(check.state)}</div><p>${escape(check.text)}</p></article>`).join('') : empty('Check results are unavailable for this snapshot.');
+  $('check-list').innerHTML = checks.length ? checks.map(check => `<article class="check"><div class="check-head"><h3>${escape(check.title)}</h3>${grade(check.state)}</div><p>${escape(check.text)}</p>${why[check.id] ? `<p class="check-why">${escape(why[check.id])}</p>` : ''}</article>`).join('') : empty('Check results are unavailable for this snapshot.');
 }
 
-function lineChart(rows, series, labelStart, labelEnd, description, format = compact) {
-  const w = 540, h = 164, left = 48, right = 14, top = 10, bottom = 25;
-  const x = index => left + index * (w-left-right) / Math.max(1,rows.length-1);
-  const highest = Math.max(...rows.flatMap(row => series.map(s => row[s.key])));
-  if (!Number.isFinite(highest) || !rows.length) return empty('The chart does not yet have complete observations.');
-  const maximum = Math.max(highest, 1);
-  const y = value => h-bottom-value*(h-top-bottom)/maximum;
-  const grid = [0,.5,1].map(v => `<path class="chart-grid" d="M${left} ${y(v*maximum)}H${w-right}"/><text class="axis" text-anchor="end" x="${left-6}" y="${y(v*maximum)+4}">${escape(format(v*maximum))}</text>`).join('');
-  const lines = series.map(s => `<polyline class="chart-${s.style}" points="${rows.map((row,i) => `${x(i).toFixed(1)},${y(row[s.key]).toFixed(1)}`).join(' ')}"/>`).join('');
-  return `<svg class="plot mini-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escape(description)}">${grid}${lines}<text class="axis" x="${left}" y="${h-3}">${escape(labelStart)}</text><text class="axis" text-anchor="end" x="${w-right}" y="${h-3}">${escape(labelEnd)}</text></svg>`;
+function chartScale(maximum) {
+  const rough = Math.max(maximum,1) / 4;
+  const unit = 10 ** Math.floor(Math.log10(rough));
+  const step = [1,2,2.5,5,10].find(value => value * unit >= rough) * unit;
+  const count = Math.ceil(maximum / step) || 1;
+  return {upper:count*step, ticks:Array.from({length:count+1},(_,i)=>i*step)};
+}
+
+function chartFrame(scale, xLabels, drawing, description, markers='') {
+  const ticks = scale.ticks.map(t => `<span class="plot-tick" style="bottom:${t / scale.upper * 100}%"><span>${escape(compact(t))}</span></span>`).join('');
+  const labels = xLabels.map(label=>`<span>${escape(label)}</span>`).join('');
+  return `<div class="chart-frame" role="img" aria-label="${escape(description)}"><div class="plot-area" aria-hidden="true">${ticks}<svg viewBox="0 0 1000 160" preserveAspectRatio="none">${drawing}</svg>${markers}</div><div class="plot-x" aria-hidden="true">${labels}</div></div>`;
+}
+
+function lineChart(rows, series, labelStart, labelEnd, description) {
+  const largest = Math.max(...rows.flatMap(row => series.map(s => row[s.key])));
+  if (!Number.isFinite(largest) || !rows.length) return empty('The chart does not yet have complete observations.');
+  const scale = chartScale(largest);
+  const x = index => index * 1000 / Math.max(1,rows.length-1);
+  const y = value => 160 - value * 160 / scale.upper;
+  const lines = series.map(s => `<polyline class="chart-${s.style}" points="${rows.map((row,i) => `${x(i).toFixed(2)},${y(row[s.key]).toFixed(2)}`).join(' ')}"/>`).join('');
+  return chartFrame(scale,[labelStart,labelEnd],lines,description);
 }
 
 function completeDays(rows, lastDay, days) {
@@ -141,7 +179,7 @@ function renderLedger(s) {
   const valid = daily.length && daily.every(r => Number.isFinite(r.minted) && Number.isFinite(r.burned));
   const running = valid ? [{date:null,minted:0,burned:0}, ...daily.map(r => { mint+=r.minted; burn+=r.burned; return {date:r.date,minted:mint,burned:burn}; })] : [];
   const plot = valid ? lineChart(running,[{key:'minted',style:'mint'},{key:'burned',style:'burn'}], date(daily[0].date,false),date(s.lastDay,false),'Cumulative VVV minted and retired over the selected window') : empty('A complete daily series is required to plot this window.');
-  $('ledger-trend').innerHTML = `<h3>Issuance against burns</h3><p class="fine">Cumulative VVV over ${d} completed days</p><div class="legend"><span><i class="sw-mint"></i>Minted</span><span><i class="sw-burn"></i>Retired</span></div>${plot}${valid ? details('Show daily amounts', table(['UTC day','Minted VVV','Retired VVV','Net VVV'],[...daily].reverse().map(r => [escape(r.date),round(r.minted,2),round(r.burned,2),signed(r.minted-r.burned,v => round(v,2))]))) : ''}`;
+  $('ledger-trend').innerHTML = `<h3>Issuance against burns</h3><p class="fine">Cumulative VVV over ${d} completed days</p><div class="legend"><span><i class="sw-mint"></i>Minted</span><span><i class="sw-burn"></i>Retired</span></div>${plot}${valid ? details('Show daily amounts', table(['UTC day','Minted VVV','Retired VVV','Net VVV'],[...daily].reverse().map(r => [date(r.date),round(r.minted,2),round(r.burned,2),signed(r.minted-r.burned,v => round(v,2))]))) : ''}`;
   const ev = s.evidence || {}, start = d === 30 ? ev.startBlock30 : ev.startBlock90;
   $('ledger-source').innerHTML = `Measured from changes in total VVV issued and the balances of the zero and dead addresses.${start && ev.endBlock ? ` Base blocks ${blockLink(start)} to ${blockLink(ev.endBlock)}.` : ''}`;
 }
@@ -149,11 +187,21 @@ function renderLedger(s) {
 function renderBuybacks(s) {
   const b = s.buybacks, cycles = [...(b?.cycles || [])].sort((a,c) => c.date.localeCompare(a.date));
   if (!cycles.length) { $('buyback-panel').innerHTML = empty('Monthly Safe inventory is unavailable in this snapshot.'); return; }
-  const c = cycles[0];
-  const rows = cycles.map(cycle => [escape(cycle.date),round(cycle.openingVvv,1),round(cycle.boughtVvv,1),signed(cycle.otherVvv,v=>round(v,1)),round(cycle.burnedVvv,1),round(cycle.closingVvv,1),money(cycle.spentUsdc),cycle.verified ? 'Verified' : 'Unverified',txLink(cycle.tx,'View ↗')]);
+  const c = cycles[0], prev = cycles[1];
+  const value = c.burnVerified ? c.valuation : null;
+  const priorValue = prev?.burnVerified ? prev.valuation : null;
+  const delta = (n, base) => Number.isFinite(n) && base > 0 ? n/base - 1 : null;
+  const changes = [
+    ['burn value',delta(value?.usd,priorValue?.usd)],
+    ['VVV retired',delta(c.burnedVvv,prev?.burnedVvv)],
+    ['USDC spent',c.verified && prev?.verified ? delta(c.spentUsdc,prev.spentUsdc) : null]
+  ].filter(([,ratio]) => Number.isFinite(ratio)).map(([name,ratio])=>`${name} ${signed(ratio,pct)}`);
+  const comparison = prev && changes.length ? `<p class="buyback-comparison">Since the ${date(prev.date,false)} cycle · ${changes.join(' · ')}</p>` : '';
+  const valuationSource = value ? `<p class="fine">The estimate prices retired VVV at ${money(value.priceUsd,2)} per token at Base block ${blockLink(value.block)}. It combines the <a href="https://basescan.org/address/${escape(value.pool)}">Aerodrome VVV/WETH price</a> and <a href="https://basescan.org/address/${escape(value.oracle)}">Chainlink ETH/USD price</a>.</p>` : '<p class="fine">A burn-time market price is unavailable for this cycle.</p>';
+  const rows = cycles.map(cycle => [date(cycle.date),round(cycle.openingVvv,1),round(cycle.boughtVvv,1),signed(cycle.otherVvv,v=>round(v,1)),round(cycle.burnedVvv,1),money(cycle.burnVerified ? cycle.valuation?.usd : null),round(cycle.closingVvv,1),money(cycle.spentUsdc),cycle.verified ? 'Verified' : 'Partial',txLink(cycle.tx,'View ↗')]);
   $('buyback-panel').innerHTML = `<div class="subhead"><h3>Latest burn · ${date(c.date)}</h3><span class="fine">${escape(stamp(s.sources?.buybacks?.asOf || b.asOf)+stale(s.sources?.buybacks))}</span></div><div class="subgrid">${[
-    datum('Spent during cycle',moneyShort(c.spentUsdc),'USDC paid for VVV'), datum('VVV bought',compact(c.boughtVvv),'Tokens acquired'), datum('VVV burned',compact(c.burnedVvv),'Retired at the burn'), datum('Closing inventory',compact(c.closingVvv),'VVV left in the Safe')
-  ].join('')}</div><p class="fine">${c.verified ? 'The Safe’s opening inventory, purchases and other transfers reconcile with the burned and remaining VVV.' : 'This cycle has incomplete inventory attribution.'} ${txLink(c.tx,'Burn transaction ↗')}</p>${details('Show cycle ledger',table(['Burn date','Opening VVV','Bought VVV','Other net VVV','Burned VVV','Closing VVV','USDC spent','Inventory','Evidence'],rows))}`;
+    datum('Estimated burn value',moneyShort(value?.usd),'USD at the burn block'), datum('VVV retired',round(c.burnedVvv),'Permanently removed'), datum('Spent during cycle',moneyShort(c.spentUsdc),c.verified ? 'USDC paid for VVV' : 'Attributed USDC purchases'), datum('Closing inventory',round(c.closingVvv),'VVV left in the Safe')
+  ].join('')}</div>${comparison}${valuationSource}<p class="fine">${Number.isFinite(c.openingVvv) && Number.isFinite(c.boughtVvv) ? `The Safe carried ${round(c.openingVvv)} VVV into this cycle and bought ${round(c.boughtVvv)} VVV.` : 'Earlier Safe balances are unavailable for this cycle.'} ${txLink(c.tx,'Burn transaction ↗')}</p>${details('Show cycle ledger',table(['Burn date','Opening VVV','Bought VVV','Other net VVV','Burned VVV','Est. burn value','Closing VVV','USDC spent','Spending evidence','Evidence'],rows))}`;
 }
 
 function referencePurchases(reference, completeVerifiedWindow) {
@@ -179,29 +227,58 @@ function renderSales(s) {
   const reference = referencePurchases(sales?.reference,Number.isFinite(sales?.window30?.estimatedUsd));
   if (!sales || !recent.length) { $('sales-panel').innerHTML = empty('No verified purchase observations are available in this snapshot.') + reference; return; }
   const w = sales.window30, latest = recent.at(-1), used = completeDays(recent,latest.date,30);
-  const rows = recent.slice().reverse().map(day => [escape(day.date),round(day.pro),round(day.proplus),round(day.max),round(day.credits),round(typeof day.unknown === 'object' ? day.unknown?.count : day.unknown),money(day.estimatedUsd),money(day.burnUsdc)]);
+  const rows = recent.slice().reverse().map(day => [date(day.date),round(day.pro),round(day.proplus),round(day.max),round(day.credits),round(typeof day.unknown === 'object' ? day.unknown?.count : day.unknown),money(day.estimatedUsd),money(day.burnUsdc)]);
   const productRows = used.length ? Object.values(SALES.products).map(p => {
     const count = used.every(r=>Number.isFinite(r[p.id])) ? used.reduce((v,r)=>v+r[p.id],0) : null;
     return [escape(p.label),round(count),money(p.price),money(Number.isFinite(count)?count*p.price:null)];
   }) : [];
-  $('sales-panel').innerHTML = `<div class="subhead"><h3>Purchase proxy · 30 days</h3><span class="fine">${escape(stamp(s.sources?.sales?.asOf || sales.asOf)+stale(s.sources?.sales))}</span></div><div class="subgrid">${[
-    datum('Estimated purchases',moneyShort(w?.estimatedUsd),'Recognized events at list prices'), datum('Versus prior 30 days',signed(w?.change,pct),'Comparable completed windows'), datum('Programmatic burns',moneyShort(w?.burnUsdc),'USD allocated to these burns')
-  ].join('')}</div><p class="fine">This proxy values recognized burn-linked purchases at list prices. Renewals, discounts, annual billing and transactions outside the burn program affect its relationship to company revenue.</p>${productRows.length ? details('Show product mix',table(['Product','Events over 30d','List price','Estimated purchases'],productRows)) : ''}${details('Show daily purchase counts',table(['UTC day','Pro','Pro+','Max','Credit packs','Unknown','Estimated purchases','Burn USDC'],rows))}${reference}`;
+  const claim = sales.claim;
+  const reported = claim?.date && claim?.url && claim?.label ? `<p class="fine company-claim"><strong>Reported company figure · ${date(claim.date)}</strong> ${escape(claim.label)} ${sourceLink(claim.url,'Source')}</p>` : '';
+  const share = Number.isFinite(w?.programmaticBurnShare) ? `<h4>Burns relative to estimated purchase value</h4><div class="subgrid burn-shares">${datum('Purchase-linked burn budget',pct(w.programmaticBurnShare),moneyShort(w.burnUsdc) + ' allocated over 30 days')}${Number.isFinite(w.totalBurnShare) ? datum('Including monthly burns',pct(w.totalBurnShare),'Adds the market value of monthly burns in the same 30 days') : datum('Including monthly burns',BLANK,'Awaiting burn valuations for the full period')}</div>` : '';
+  $('sales-panel').innerHTML = `<div class="subhead"><h3>Estimated purchases · 30 days</h3><span class="fine">${escape(stamp(s.sources?.sales?.asOf || sales.asOf)+stale(s.sources?.sales))}</span></div><div class="subgrid">${[
+    datum('Estimated purchases',moneyShort(w?.estimatedUsd),'Matched purchases at list prices'), datum('Annualized pace',moneyShort(w?.annualizedUsd),'30-day estimate × 365 / 30'), datum('Versus prior 30 days',signed(w?.change,pct),'Comparable completed windows')
+  ].join('')}</div>${reported}<p class="fine">The estimate applies list prices to matched purchases. Renewals, discounts, annual billing and transactions outside the burn program limit how closely it tracks company revenue.</p>${share}${productRows.length ? details('Show product mix',table(['Product','Events over 30d','List price','Estimated purchases'],productRows)) : ''}${details('Show daily purchase counts',table(['UTC day','Pro','Pro+','Max','Credit packs','Unknown','Estimated purchases','Burn USDC'],rows))}${reference}`;
 }
 
-function curveMarkup(curve, supply, target) {
-  const points = (curve || []).filter(p => p.supply>0 && p.rate>0).sort((a,b)=>a.supply-b.supply);
-  if (points.length<2) return '';
-  const lo = 47, right=528, top=9, bottom=125;
-  const minY=Math.log10(Math.min(...points.map(p=>p.rate))), maxY=Math.log10(Math.max(...points.map(p=>p.rate)));
-  if (!(maxY>minY)) return '';
-  const maxX=points.at(-1).supply, x=v=>lo+(right-lo)*v/maxX, y=v=>bottom-(bottom-top)*(Math.log10(v)-minY)/(maxY-minY);
-  const markers=[[supply,'Current',top+10],[target,'Target',top+24]].filter(([val])=>val>=0 && val<=maxX && Number.isFinite(val)).map(([val,label,height])=>`<path d="M${x(val)} ${top}V${bottom}" stroke="var(--muted)" stroke-dasharray="3 4"/><text class="axis" x="${Math.min(x(val)+4,right-42)}" y="${height}">${label}</text>`).join('');
-  const axisRate = value => value >= 1e7 ? value.toExponential(0).replace('+','') : compact(value,1);
-  const ticks=[minY,(minY+maxY)/2,maxY].map(t=>`<path class="chart-grid" d="M${lo} ${y(10**t)}H${right}"/><text class="axis" x="${lo-5}" text-anchor="end" y="${y(10**t)+3}">${axisRate(10**t)}</text>`).join('');
-  const steps=points.map((p,i)=>`${i?'V':'M'+lo+' '}${y(p.rate).toFixed(1)}H${x(p.supply).toFixed(1)}`).join(' ');
-  const plot=`<svg class="plot" viewBox="0 0 540 147" role="img" aria-label="DIEM mint rate in sVVV at each supply boundary, with logarithmic vertical scale">${ticks}<path class="chart-teal" d="${steps}"/>${markers}<text class="axis" x="${lo}" y="143">0 DIEM</text><text class="axis" text-anchor="end" x="${right}" y="143">${compact(maxX)} DIEM</text></svg>`;
-  return `${details('Show mint curve',`<p class="fine">Supply on the horizontal axis. The vertical axis shows sVVV per additional DIEM on a logarithmic scale.</p>${plot}${details('Show curve as table',table(['Supply upper bound (DIEM)','sVVV per DIEM'],points.map(p=>[round(p.supply,1),round(p.rate,2)])))}`)}`;
+function curveMarkup(curve, supply, target, currentRate) {
+  const points = (curve || []).filter(p => Number.isFinite(p.supply) && p.supply > 0 && Number.isFinite(p.rate) && p.rate > 0)
+    .sort((a,b) => a.supply-b.supply);
+  if (points.length < 2) return '';
+  const precision = n => n >= 1e9 ? n.toExponential(3).replace('+','') : round(n,2);
+  const tableOfRates = details('Show full mint schedule',table(['Supply upper bound (DIEM)','sVVV per DIEM'],points.map(p=>[round(p.supply,2),precision(p.rate)])));
+  const end = points.at(-1).supply;
+  if (!(Number.isFinite(supply) && supply >= 0 && supply <= end && Number.isFinite(target) && target > 0 && target <= end)) return tableOfRates;
+
+  // The upper bound of a bracket applies to the last unit minted into that bracket.
+  // At an exact boundary, the next unit takes the following bracket's rate.
+  const close = (a,b) => Math.abs(a-b) <= Math.max(1,Math.abs(a),Math.abs(b))*1e-12;
+  const toTarget = points.find(p => p.supply > target || close(p.supply,target));
+  const afterTarget = points.find(p => p.supply > target && !close(p.supply,target));
+  const current = Number.isFinite(currentRate) ? currentRate : points.find(p => p.supply > supply && !close(p.supply,supply))?.rate;
+  if (!toTarget || !Number.isFinite(current)) return tableOfRates;
+
+  const spacing = 5000;
+  const low = Math.max(0,Math.floor((Math.min(supply,target)-spacing)/spacing)*spacing);
+  const high = Math.min(end,Math.ceil((Math.max(supply,target)+spacing)/spacing)*spacing);
+  const steps = [];
+  for (let i=0;i<points.length;i++) {
+    const start = Math.max(low,i ? points[i-1].supply : 0);
+    const stop = Math.min(high,points[i].supply);
+    if (stop > start && !close(start,stop)) steps.push({start,stop,rate:points[i].rate});
+  }
+  if (!steps.length) return tableOfRates;
+  const scale = chartScale(Math.max(current,toTarget.rate,...steps.map(p=>p.rate)));
+  const x = value => (value-low)/(high-low)*1000;
+  const y = rate => (1-rate/scale.upper)*160;
+  const path = steps.map((p,i) => `${i ? 'V' : 'M' + x(p.start).toFixed(2) +' '}${y(p.rate).toFixed(2)}H${x(p.stop).toFixed(2)}`).join(' ');
+  function marker(value,rate,kind) {
+    return `<span class="curve-guide" style="left:${x(value)/10}%"></span><i class="curve-point ${kind}" style="left:${x(value)/10}%;bottom:${rate/scale.upper*100}%"></i>`;
+  }
+  const markers = marker(target,toTarget.rate,'target')+marker(supply,current,'current');
+  const xLabels = [compact(low),compact((low+high)/2),compact(high)];
+  const plot = chartFrame(scale,xLabels,`<path class="chart-teal" d="${path}"/>`,'Linear mint curve from '+round(low)+' to '+round(high)+' DIEM outstanding, with current and policy target rates.',markers);
+  const next = afterTarget && afterTarget.rate !== toTarget.rate ? ` The next DIEM above the target costs ${round(afterTarget.rate)} sVVV.` : '';
+  return `<div class="curve-section"><h4>DIEM mint curve</h4><p class="fine">sVVV per DIEM minted</p><div class="curve-grid"><div>${plot}<p class="plot-caption">DIEM outstanding</p></div><div class="curve-readings"><div><span class="curve-key current"></span><span>Current supply · ${round(supply)} DIEM</span><strong>${round(current)} <small>sVVV / DIEM</small></strong></div><div><span class="curve-key target"></span><span>Policy target · ${round(target)} DIEM</span><strong>${round(toTarget.rate)} <small>sVVV / DIEM</small></strong></div></div></div><p class="fine">The target rate applies to the last DIEM minted to reach ${round(target)}.${next}</p>${tableOfRates}</div>`;
 }
 
 function renderDiem(s) {
@@ -210,13 +287,15 @@ function renderDiem(s) {
   const ux = u ? `<h4>Inference credit use</h4><p class="fine">Across ${round(u.days)} completed days through ${date(u.date)}, users consumed ${money(u.consumedPerDay)} of ${money(u.depositedPerDay)} in eligible daily credit on average (${pct(u.ratio)}). <a href="https://venicestats.com/diem">VeniceStats usage data ↗</a></p>` : '<p class="fine">Inference usage is unavailable in this snapshot.</p>';
   const creditNote = Number.isFinite(d.annualCreditRatio) ? `<p class="fine">Using the full $1 daily allocation would deliver a year of API credit worth ${pct(d.annualCreditRatio)} of the recorded DIEM price. Unused daily credit expires.</p>` : '';
   $('diem-panel').innerHTML=`<div class="subhead"><h3>Compute credit capacity</h3><span class="fine">${escape(stamp(s.lastDay)+stale(s.sources?.protocol))}</span></div><div class="subgrid">${[
-    datum('DIEM issued',compact(d.supply),`Policy target ${round(d.target)} DIEM`), datum('Deposited for credits',compact(d.deposited),`${pct(divide(d.deposited,d.supply))} of issued DIEM`), datum('Locked sVVV',compact(d.locked),`${signed(d.change30,pct)} over 30 days`),datum('Mint quote',round(d.mintRate,1),'sVVV per DIEM')].join('')}</div>${creditNote}${ux}${curveMarkup(s.rules?.values?.curve,d.supply,d.target)}`;
+    datum('DIEM issued',compact(d.supply),`Policy target ${round(d.target)} DIEM`), datum('Deposited for credits',compact(d.deposited),`${pct(divide(d.deposited,d.supply))} of issued DIEM`), datum('Locked sVVV',compact(d.locked),`${signed(d.change30,pct)} over 30 days`),datum('Mint quote',round(d.mintRate,1),'sVVV per DIEM')].join('')}</div>${creditNote}${ux}${curveMarkup(s.rules?.values?.curve,d.supply,d.target,d.mintRate)}`;
 }
 
 function renderTreasury(s) {
   const t = s.treasury || {}, supply=s.supply || {};
   const holding = [t.vvv,t.svvv,t.cooldown].every(Number.isFinite) ? t.vvv+t.svvv+t.cooldown : null;
-  $('treasury-panel').innerHTML=`<div class="subhead"><h3>Control Safe holdings</h3><span class="fine">${address(t.address)}</span></div><div class="subgrid">${[
+  const wallets = t.wallets || [];
+  const grouped = wallets.length ? `<div class="subhead"><h3>Tracked Safe holdings</h3><span class="fine">${escape(stamp(t.walletsAsOf)+stale(s.sources?.wallets))}${t.walletsBlock ? ' · '+blockLink(t.walletsBlock) : ''}</span></div><div class="subgrid">${datum('VVV in tracked Safes',compact(t.trackedSafeTotal),'Liquid, staked and in cooldown')}${datum('30-day change',signed(t.trackedSafeChange30,pct),'After direct emissions')}</div><p class="fine">The holdings check combines the wallets marked as included below. Transfers between them leave the combined balance unchanged.</p>${details('Show wallets and ownership evidence',table(['Wallet','Attribution','Holdings check','VVV','sVVV','In cooldown','30-day change (VVV)','DIEM'],wallets.map(w=>[`${escape(w.label)}<br>${address(w.address)}`,`${escape(w.attribution ?? w.role ?? '')} ${w.sourceUrl ? sourceLink(w.sourceUrl,'Evidence') : ''}`,w.inGrade ? 'Included' : 'Context only',round(w.vvv),round(w.svvv),round(w.cooldown),signed(w.change30),round(w.diem,1)])))}<hr class="divider">` : '';
+  $('treasury-panel').innerHTML=`${grouped}<div class="subhead"><h3>Control Safe holdings</h3><span class="fine">${address(t.address)}</span></div><div class="subgrid">${[
     datum('Wallet VVV',compact(t.vvv),'Unstaked balance'),datum('Staked VVV',compact(t.svvv),'sVVV in the Safe'),datum('In cooldown',compact(t.cooldown),'Principal still owed to the Safe'),datum('Total tracked',compact(holding),'VVV equivalent')].join('')}</div><p class="fine">The tracked balance includes pending withdrawals. Transfers and unstaking can move VVV without a sale.</p>${details('Show protocol-wide staking',list([['Total effective VVV',round(supply.effective)],['Total staked VVV',round(supply.staked)],['Locked behind DIEM',round(supply.locked)],['Share of stake locked',pct(divide(supply.locked,supply.staked))]]))}`;
 }
 
@@ -238,10 +317,22 @@ function renderRules(s) {
   const names = Object.fromEntries(RULES.map(k=>[k.id,k.label]));
   names.curveHash = 'DIEM mint curve';
   names.emissionRatePerYear = 'Annual issuance (VVV)';
-  const changesTable = changes.length ? table(['UTC day','Rule','Previous','New','Evidence'],changes.map(c => [escape(c.date),escape(names[c.id] || c.label || c.id),shortChange(c.from),shortChange(c.to),txLink(c.tx,'View ↗')])) : empty('No rule changes appear in the observed history.');
+  const changesTable = changes.length ? `<div class="history-table">${table(['UTC day','Change','Evidence'],changes.map(c => {
+    const documented = c.policyTarget;
+    let description;
+    if (c.id === 'curveHash') {
+      const targetChange = Number.isFinite(documented?.to) && Number.isFinite(documented?.from)
+        ? `Published DIEM target · ${round(documented.from)} → ${round(documented.to)}` : 'The contract’s DIEM mint schedule changed.';
+      const hashes = `<details class="hash-proof"><summary>Curve hashes</summary><code>${escape(c.from)}</code><code>${escape(c.to)}</code></details>`;
+      description = `${targetChange} ${documented?.sourceUrl ? sourceLink(documented.sourceUrl,documented.sourceLabel || 'Published schedule') : ''}${hashes}`;
+    } else {
+      description = `${escape(names[c.id] || c.label || c.id)}<br>${shortChange(c.from)} → ${shortChange(c.to)}`;
+    }
+    return [date(c.date),description,txLink(c.tx,'Transaction')];
+  }))}</div>` : empty('No rule changes appear in the observed history.');
   const policies=[...(r.policy||[])].sort((a,b)=>b.date.localeCompare(a.date));
-  const policy=policies.length?`<ul class="event-list">${policies.map(p=>`<li><time>${date(p.date)}</time><span>${escape(p.label)} ${p.tx ? txLink(p.tx,'View ↗') : ''}</span></li>`).join('')}</ul>`:'';
-  const secondsToDays = n => Number.isFinite(n) ? `${round(n/86400,2)} days` : BLANK;
+  const policy=policies.length?`<ul class="event-list">${policies.map(p=>`<li><time>${date(p.date)}</time><span>${escape(p.label)} ${p.sourceUrl ? sourceLink(p.sourceUrl,p.sourceLabel || 'Source') : ''} ${p.tx ? txLink(p.tx,'Transaction') : ''}</span></li>`).join('')}</ul>`:'';
+  const secondsToDays = n => Number.isFinite(n) ? `${round(n/86400,2)} ${n===86400 ? 'day' : 'days'}` : BLANK;
   const parameters=[['VVV emissions per year',round(v.emissionRatePerYear)],['Venice share of emissions',pct(v.venicePct)],['Venice share on locked stake',pct(v.venicePctLocked)],['VVV unstake cooldown',secondsToDays(v.cooldown)],['DIEM unstake cooldown',secondsToDays(v.diemCooldown)],['Staking owner',address(v.stakingOwner)],['VVV owner',address(v.vvvOwner)],['Rewards treasury',address(v.treasury)],['Staking implementation',address(v.implementation)]];
   $('rules-panel').innerHTML=`<div class="subhead"><h3>Current settings</h3><span class="fine">${escape(stamp(r.asOf)+stale(s.sources?.protocol))}${r.block?` · ${blockLink(r.block)}`:''}</span></div><div class="subgrid">${[
     datum('Control Safe',safe(v.controlSafe),'Signatures required'),datum('Buyback Safe',safe(v.buybackSafe),'Signatures required'),datum('Annual issuance rate',compact(v.emissionRatePerYear),'VVV per year'),datum('Locked-stake share',pct(v.venicePctLocked),'Paid to Venice')].join('')}</div>${details('Show contract parameters',list(parameters))}${details(`Onchain changes (${changes.length})`,changesTable)}${policy?details('Dated policy events',policy):''}`;

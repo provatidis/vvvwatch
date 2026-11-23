@@ -52,7 +52,7 @@ const why = {
 };
 
 let snapshot;
-let selectedDays = 30;
+let selectedDays = new URLSearchParams(location.search).get('days') === '90' ? 90 : 30;
 
 function theme() {
   const toggle = $('theme');

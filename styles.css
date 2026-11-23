@@ -28,8 +28,10 @@
 /* Keep numeric comparisons legible at the same size as the surrounding text. */
 h1 { letter-spacing: 0; }
 .title-token { font-kerning: none; letter-spacing: .035em; }
-.cover-recent { margin: 0 0 13px; color: #c6dad5; font-size: .875rem; line-height: 1.45; }
-.cover-recent strong { color: var(--aqua); font-weight: 600; }
+.cover-context { margin-bottom: 13px; line-height: 1.45; }
+.cover-recent { color: #ecf6ef; font-size: .9375rem; font-weight: 500; }
+.cover-breakdown { color: #bfd3ce; font-size: .8125rem; }
+.cover-recent:not(:empty) + .cover-breakdown:not(:empty) { margin-top: 4px; }
 .check .check-why { border-top: 1px solid var(--light-rule); padding-top: 9px; margin-top: 9px; font-size: .8125rem; }
 .buyback-comparison { margin: 12px 0 6px; font-size: .9375rem; line-height: 1.55; }
 .burn-shares { max-width: 650px; }
@@ -79,7 +81,15 @@ h1 { letter-spacing: 0; }
 .calc label{display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--muted)}
 .calc input[type=number]{font:inherit;font-size:16px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:9px 12px;min-height:44px;width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
 .calc input[type=range]{width:100%;min-height:44px;margin:0;accent-color:var(--teal)}
-.calc input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.calc select { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 9px 12px; min-height: 44px; width: 100%; }
+.calc-position { grid-column: span 2; min-width: 0; padding: 8px 12px 12px; border: 1px solid var(--rule); border-radius: 6px; }
+.calc-position:not([hidden]) { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.calc-position legend { color: var(--muted); padding: 0 4px; font-size: 13px; }
+.calc-errors { color: var(--red); font-size: 14px; }
+.calc-errors:not(:empty) { margin: 12px 0; }
+.calc input[aria-invalid=true] { border-color: var(--red); }
+@media(max-width:680px){.calc-position{grid-column:1/-1}.calc-position:not([hidden]){grid-template-columns:1fr}}
+.calc select:focus-visible,.calc input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
 .calc output{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px}
 .calc-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0 10px}
 .calc-option{border:1px solid var(--light-rule);border-radius:8px;padding:16px;min-width:0}

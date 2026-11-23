@@ -44,7 +44,15 @@
   <noscript><p>This dashboard uses JavaScript to read its <a href="./data/latest.json">daily snapshot</a>.</p></noscript>
   <section class="hero" aria-labelledby="title">
     <div class="hero-copy"><div class="eyeline"><span class="tag-dot"></span>Venice AI <span class="slash">/</span> Base</div><h1 id="title"><span class="title-token">VVV</span> <em>watch.</em></h1><p class="intro">Venice buys and burns VVV as customers pay for AI. Staking issues new VVV. This tracker measures how much of that issuance the burns offset.</p><p class="asof" id="asof" role="status">Loading daily snapshot…</p></div>
-    <div class="feature" aria-labelledby="cover-title"><div class="feature-top"><h2 id="cover-title">Burn cover <span> / 90 days</span></h2><span id="cover-grade"></span></div><div class="feature-content"><div><strong class="hero-number" id="cover-value">—</strong><p id="cover-note">Burned VVV per token minted</p></div><div class="gauge" id="gauge" aria-hidden="true"></div></div><p class="cover-recent" id="cover-recent" hidden></p><div class="feature-foot"><span>Break-even <b>1.00×</b></span><a href="#ledger">View ledger <span aria-hidden="true">↓</span></a></div></div>
+    <div class="feature" aria-labelledby="cover-title">
+      <div class="feature-top"><h2 id="cover-title">Burn cover <span> / 90 days</span></h2><span id="cover-grade"></span></div>
+      <div class="feature-content"><div><strong class="hero-number" id="cover-value">—</strong><p id="cover-note">Share of issuance offset by burns</p></div><div class="gauge" id="gauge" aria-hidden="true"></div></div>
+      <div class="cover-context" id="cover-context" hidden>
+        <p class="cover-recent" id="cover-recent"></p>
+        <p class="cover-breakdown" id="cover-breakdown"></p>
+      </div>
+      <div class="feature-foot"><span>Break-even <b>100%</b></span><a href="#ledger">View ledger <span aria-hidden="true">↓</span></a></div>
+    </div>
   </section>
   <div id="overview" class="metric-strip" aria-label="Snapshot figures"></div>
   <section class="section" id="checks" aria-labelledby="checks-title"><div class="section-head"><div><h2 id="checks-title">Thesis <em>checks.</em></h2><p>Six signals behind the VVV and DIEM holder case.</p></div></div><div id="check-list" class="check-grid"></div></section>

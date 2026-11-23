@@ -1,0 +1,13 @@
+{
+  "name": "vvvwatch",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "A daily ledger for Venice's VVV supply, buybacks and DIEM.",
+  "scripts": {
+    "test": "node --test",
+    "snapshot": "node scripts/snapshot.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "engines": { "node": ">=22" }
+}

@@ -1,38 +1,19 @@
 import { RULES, SALES } from './lib/config.js';
 import { diemTradeoff, holderSummary } from './lib/holders.js';
-import { burnCoverContext } from './lib/burn-cover.js';
+import { DAY, BLANK, round, compact, pct, money, moneyShort, signed, divide, escape, date, blockLink, utcMidnight } from './lib/format.js';
+import { drawGauge, overviewFragments } from './lib/overview.js';
 
-const DAY = 86_400_000;
-const BLANK = '—';
 const $ = id => document.getElementById(id);
-const round = (value, digits = 0) => Number.isFinite(value) ? value.toLocaleString('en-US', { maximumFractionDigits: digits }) : BLANK;
-const compact = (value, digits = 2) => Number.isFinite(value) ? value.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: digits }) : BLANK;
-const pct = (value, digits = 1) => Number.isFinite(value) ? `${round(value * 100, digits)}%` : BLANK;
 const multiple = (value, digits = 2) => Number.isFinite(value) ? `${value.toFixed(digits)}×` : BLANK;
-const money = (value, digits = 0) => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}` : BLANK;
-const moneyShort = value => Number.isFinite(value) ? `$${compact(value)}` : BLANK;
-const signed = (value, format = round) => Number.isFinite(value) ? `${value > 0 ? '+' : value < 0 ? '−' : ''}${format(Math.abs(value))}` : BLANK;
-const divide = (value, denominator) => Number.isFinite(value) && denominator > 0 ? value / denominator : null;
-const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'})[char]);
-const date = (iso, withYear = true) => {
-  if (!iso) return BLANK;
-  const d = new Date(iso);
-  return Number.isFinite(d.getTime()) ? d.toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', ...(withYear ? {year:'numeric'} : {}) }) : BLANK;
-};
 const stamp = iso => iso ? `Through ${date(iso)} UTC` : 'Source date unavailable';
 const stale = source => source?.ok === false ? ' · last good reading' : '';
 const address = value => /^0x[0-9a-f]{40}$/i.test(value) ? `<a class="address" href="https://basescan.org/address/${value}" title="${value}">${value.slice(0,6)}…${value.slice(-4)}</a>` : BLANK;
 const txLink = (tx, label = 'Transaction ↗') => /^0x[0-9a-f]{64}$/i.test(tx) ? `<a class="evidence-link" href="https://basescan.org/tx/${tx}">${escape(label)}</a>` : BLANK;
-const blockLink = block => Number.isSafeInteger(block) && block > 0 ? `<a href="https://basescan.org/block/${block}">${round(block)}</a>` : BLANK;
-const gradeNames = {healthy:'Healthy', watch:'Watch', alert:'Alert', stale:'Stale', pending:'Pending'};
-const grade = state => `<span class="badge ${Object.hasOwn(gradeNames,state) ? state : 'pending'}">${gradeNames[state] ?? 'Pending'}</span>`;
-const metric = (label, amount, note) => `<div class="metric"><span class="metric-label">${escape(label)}</span><strong class="metric-amount">${escape(amount)}</strong><span class="metric-note">${escape(note)}</span></div>`;
 const datum = (label, amount, note = '') => `<div class="datum"><span class="datum-label">${escape(label)}</span><strong>${escape(amount)}</strong>${note ? `<span class="datum-note">${escape(note)}</span>` : ''}</div>`;
 const table = (headers, rows) => `<div class="table-wrap large-table"><table class="data-table"><thead><tr>${headers.map(h => `<th scope="col">${escape(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 const details = (label, content) => `<details><summary>${escape(label)}</summary>${content}</details>`;
 const empty = text => `<p class="empty">${escape(text)}</p>`;
 const list = rows => `<dl class="summary-list">${rows.map(([k,v,cls]) => `<div${cls ? ` class="${cls}"` : ''}><dt>${escape(k)}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
-const utcMidnight = day => Date.parse(`${day}T00:00:00Z`);
 function sourceLink(url, label) {
   try {
     const address = new URL(url);
@@ -40,16 +21,6 @@ function sourceLink(url, label) {
   } catch { /* Older snapshots may lack a source URL. */ }
   return escape(label);
 }
-
-const why = {
-  cover: 'Burns offset dilution. At 100% cover, they retire one VVV for every new VVV issued.',
-  sales: 'Qualifying purchases fund automatic burns, linking customer activity to demand for VVV.',
-  monthly: 'A monthly burn permanently removes VVV from supply. Its dollar value depends on both the token count and the price at the burn.',
-  exits: 'Tokens entering cooldown can return to circulation after the withdrawal period.',
-  diem: 'Minting DIEM locks staked VVV. A shrinking collateral balance puts more of that stake within reach of withdrawal.',
-  trackedSafes: 'A drop in the combined balance means VVV has moved outside the three tracked Safes after direct emissions are accounted for.',
-  venice: 'Changes in the control Safe show how much VVV Venice holds there after accounting for new emissions.'
-};
 
 let snapshot;
 let selectedDays = new URLSearchParams(location.search).get('days') === '90' ? 90 : 30;
@@ -72,43 +43,13 @@ function theme() {
   });
 }
 
-function drawGauge(ratio) {
-  const point = (fraction, radius) => {
-    const angle = Math.PI * (1 - fraction);
-    return [104 + radius * Math.cos(angle), 92 - radius * Math.sin(angle)].map(v => v.toFixed(1)).join(' ');
-  };
-  const ticks = Array.from({length:21}, (_,i) => `<path d="M${point(i/20, i%5 ? 74 : 70)} L${point(i/20,79)}" stroke="#8aa6a2" stroke-width="${i%5 ? 1 : 1.6}"/>`).join('');
-  const pointer = Number.isFinite(ratio) ? `<path d="M104 92 L${point(Math.min(1,Math.max(0,ratio)),67)}" stroke="#89e2d3" stroke-width="3.2" stroke-linecap="round"/><circle cx="104" cy="92" r="4.5" fill="#89e2d3"/>` : '';
-  const progress = Number.isFinite(ratio) ? `<path d="M20 92 A84 84 0 0 1 188 92" fill="none" pathLength="100" stroke="#79dcce" stroke-width="5" stroke-dasharray="${Math.min(100,Math.max(0,ratio * 100))} 101"/>` : '';
-  return `<svg viewBox="0 0 208 113"><path d="M20 92 A84 84 0 0 1 188 92" fill="none" stroke="#3d5c5d" stroke-width="5"/>${progress}${ticks}${pointer}<text class="gauge-label" x="19" y="108" text-anchor="middle">0%</text><text class="gauge-label" x="188" y="108" text-anchor="middle">100%</text></svg>`;
-}
-
 function renderOverview(s) {
-  const w = s.supply?.windows?.['90'];
-  const cover = s.checks?.find(check => check.id === 'cover');
-  const context = burnCoverContext(s.supply?.windows);
-  $('cover-grade').innerHTML = grade(cover?.state);
-  $('cover-value').textContent = pct(w?.ratio);
-  $('cover-note').textContent = context.thresholdNote;
-  $('cover-recent').textContent = context.trend;
-  $('cover-breakdown').textContent = context.breakdown;
-  $('cover-context').hidden = !context.trend && !context.breakdown;
-  $('gauge').innerHTML = drawGauge(w?.ratio);
-  const old = Date.now() - utcMidnight(s.lastDay) >= 3 * DAY;
-  $('asof').innerHTML = `Data through <strong>${date(s.lastDay)} UTC</strong>${old ? ' · older snapshot' : ''}${s.evidence?.endBlock ? ` · Base block ${blockLink(s.evidence.endBlock)}` : ''}`;
-  const p = s.prices, paid = s.sales?.window30;
-  const vvvPrice = p?.vvv, diemPrice = p?.diem;
-  $('overview').innerHTML = [
-    metric('VVV price', money(vvvPrice?.usd,2), vvvPrice ? `Quote · ${date(vvvPrice.asOf,false)} UTC` : 'Quote unavailable'),
-    metric('Effective supply', compact(s.supply?.effective), 'VVV outside burn addresses'),
-    metric('Net issuance', signed(w?.net,compact), 'VVV over 90 days'),
-    metric('Staked supply', pct(divide(s.supply?.staked,s.supply?.effective)), 'Share of effective VVV'),
-    metric('Purchases · 30 days', moneyShort(paid?.estimatedUsd), Number.isFinite(paid?.annualizedUsd) ? `${moneyShort(paid.annualizedUsd)} annualized at list prices` : 'Estimated at list prices'),
-    metric('DIEM price', money(diemPrice?.usd,2), diemPrice ? `Quote · ${date(diemPrice.asOf,false)} UTC` : 'Quote unavailable')
-  ].join('');
-  const order = {alert:0, watch:1, stale:2, pending:3, healthy:4};
-  const checks = [...(s.checks || [])].sort((a,b) => (order[a.state] ?? 9) - (order[b.state] ?? 9));
-  $('check-list').innerHTML = checks.length ? checks.map(check => `<article class="check"><div class="check-head"><h3>${escape(check.title)}</h3>${grade(check.state)}</div><p>${escape(check.text)}</p>${why[check.id] ? `<p class="check-why">${escape(why[check.id])}</p>` : ''}</article>`).join('') : empty('Check results are unavailable for this snapshot.');
+  const fragments = overviewFragments(s);
+  for (const [id, html] of Object.entries(fragments)) {
+    const element = $(id);
+    if (element.innerHTML !== html) element.innerHTML = html;
+  }
+  $('cover-context').hidden = !fragments['cover-recent'] && !fragments['cover-breakdown'];
 }
 
 function chartScale(maximum) {
@@ -505,13 +446,18 @@ async function load() {
     snapshot=s;
     render(snapshot);
   } catch {
-    $('asof').textContent='Snapshot unavailable';
-    $('cover-note').textContent='Awaiting a verified snapshot';
-    $('gauge').innerHTML=drawGauge(null);
+    const savedOverview = $('overview').childElementCount > 0;
+    if (!savedOverview) {
+      $('asof').textContent='Snapshot unavailable';
+      $('cover-note').textContent='Awaiting a verified snapshot';
+      $('gauge').innerHTML=drawGauge(null);
+      $('check-list').innerHTML=empty('Data is unavailable.');
+    }
     $('error').hidden=false;
-    $('error').innerHTML='The dashboard could not load its daily snapshot. <button type="button" id="retry">Retry</button> <a href="./data/latest.json">Open snapshot JSON ↗</a>';
+    const message = savedOverview ? 'Showing the saved overview. The detailed snapshot could not load.' : 'The dashboard could not load its daily snapshot.';
+    $('error').innerHTML=message+' <button type="button" id="retry">Retry</button> <a href="./data/latest.json">Open snapshot JSON ↗</a>';
     $('retry').addEventListener('click',load,{once:true});
-    for (const id of ['check-list','holders-panel','ledger-summary','ledger-trend','buyback-panel','sales-panel','diem-panel','treasury-panel','rules-panel']) $(id).innerHTML=empty('Data is unavailable.');
+    for (const id of ['holders-panel','ledger-summary','ledger-trend','buyback-panel','sales-panel','diem-panel','treasury-panel','rules-panel']) $(id).innerHTML=empty('Data is unavailable.');
   }
 }
 

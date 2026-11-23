@@ -17,8 +17,9 @@ const snapshot = {
   rules: {values: {emissionRatePerYear: 2_000_000, venicePct: 0, venicePctLocked: 0.2, cooldown: 604800, diemCooldown: 86400, curve}},
   supply: {staked: 33055156.92123372, locked: 8603669.402561754, effective: 81281991.79892865,
     windows: {30: {minted: 164385.46423135465, burned: 53491.07202068587, annualized: 0.016621866013088276, end: '2026-11-22'}}},
-  sales: {window30: {annualizedUsd: 141287558, totalBurnShare: 0.09820317816183885}},
-  treasury: {trackedSafeTotal: 32350634.522800673},
+  lastDay: '2026-11-22', evidence: {endBlock: 61008121},
+  sales: {window30: {end: '2026-11-22', annualizedUsd: 141287558, totalBurnShare: 0.09820317816183885}},
+  treasury: {walletsAsOf: '2026-11-22', walletsBlock: 61008121, trackedSafeTotal: 32350634.522800673},
   prices: {vvv: {usd: 25.41, asOf: '2026-11-23T17:39:10.000Z'}, diem: {usd: 1968.99, asOf: '2026-11-23T17:39:10.000Z'}},
   diem: {supply: diemSupply, target: 40000}
 };
@@ -45,6 +46,39 @@ test('holder value uses the 30-day pace and both market-value bases', () => {
   near(v.salesShare, 0.0982, 0.0001);
 });
 
+test('wallet totals must cover the entire cohort at the supply close', () => {
+  const wallets = [{inGrade: true, vvv: 100, svvv: 50, cooldown: 0}];
+  for (const treasury of [
+    {...snapshot.treasury, trackedSafeTotal: null, wallets},
+    {...snapshot.treasury, walletsAsOf: '2026-11-21'},
+    {...snapshot.treasury, walletsBlock: 61008120},
+    {wallets}
+  ]) {
+    const value = holderSummary({...snapshot, treasury}, now).value;
+    assert.equal(value.psExVenice, null);
+    near(value.psAll, 14.62, 0.01);
+  }
+  const zero = holderSummary({...snapshot, treasury: {...snapshot.treasury, trackedSafeTotal: 0}}, now).value;
+  assert.equal(zero.psExVenice, zero.psAll);
+});
+
+test('sales ratios keep the sales window date even when the protocol close is newer', () => {
+  const period = {...snapshot.sales.window30, end: '2026-11-15'};
+  const value = end => holderSummary({...snapshot, sales: {window30: {...period, end}}}, now).value;
+  assert.equal(value(period.end).salesEnd, period.end);
+  near(value(period.end).psAll, 14.62, 0.01);
+  assert.equal(value(null).psAll, null);
+  assert.equal(value(null).salesShare, null);
+});
+
+test('supply contraction, unchanged supply and unusable annualizations keep distinct results', () => {
+  near(shareChange(0, -0.02), 0.020408, 0.000001);
+  assert.equal(shareChange(0, 0), 0);
+  assert.ok(shareChange(0.06, 0.12) < 0);
+  assert.equal(shareChange(0, -1), null);
+  assert.equal(shareChange(0, -3.91), null);
+});
+
 test('DIEM mints charge each curve step its own rate', () => {
   near(currentMintRate(diemSupply, curve), 467.668, 0.001);
   near(svvvForDiem(1, diemSupply, curve), 467.668, 0.001);
@@ -68,6 +102,25 @@ test('one DIEM: lost rewards, break-even credit use and the buy-back ceiling', (
   const many = diemTradeoff({n: 100, usePerDay: 1, years: 1, supply: diemSupply, curve, aprU: h.yields.aprU, aprL: h.yields.aprL, pVVV: h.pVVV, pDIEM: h.pDIEM});
   assert.equal(many.crossesStep, true);
   near(many.rateAvg, 472.60, 0.01);
+});
+
+test('burning the new mint uses the wallet’s pooled collateral and outstanding DIEM', () => {
+  const scenario = {n: 1, usePerDay: 1, years: 1, supply: diemSupply, curve, aprU: 0.06, aprL: 0.048, pVVV: 25, pDIEM: 1950};
+  const first = diemTradeoff(scenario);
+  assert.equal(first.unlocked, first.svvv);
+  assert.equal(first.remainingLocked, 0);
+  for (const priorLocked of [100, 800]) {
+    const existing = diemTradeoff({...scenario, priorDiem: 1, priorLocked});
+    near(existing.unlocked, (priorLocked + first.svvv) / 2, 1e-10);
+    near(existing.remainingLocked + existing.unlocked, priorLocked + first.svvv, 1e-10);
+    assert.equal(existing.forgoneVVV, first.forgoneVVV);
+    assert.equal(existing.buybackTotal, first.buybackTotal);
+  }
+  const fractional = diemTradeoff({...scenario, priorDiem: 0.5, priorLocked: 50});
+  near(fractional.unlocked, (50 + first.svvv) / 1.5, 1e-10);
+  for (const prior of [{priorDiem: 1}, {priorLocked: 100}, {priorDiem: -1, priorLocked: 10}]) {
+    assert.equal(diemTradeoff({...scenario, ...prior}), null);
+  }
 });
 
 test('missing inputs give blanks, never zero or NaN', () => {

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T20:10:12.831Z",
+  "generatedAt": "2026-11-23T20:19:00.037Z",
   "lastDay": "2026-11-22",
   "source": {
     "name": "Base mainnet · finalized UTC closing blocks",
@@ -18,8 +18,8 @@
   },
   "coverage": {
     "firstClosingCheckpoint": "2026-07-17",
-    "verifiedFlowDays": 38,
-    "verifiedAuditDays": 40
+    "verifiedFlowDays": 39,
+    "verifiedAuditDays": 41
   },
   "days": [
     {
@@ -517,16 +517,20 @@
         "vvvOwner": "0x321b7ff75154472b18edb199033ff4d116f340ff",
         "diemCooldown": 86400
       },
-      "mintVenice": null,
-      "mintStakers": null,
-      "mintOther": null,
-      "stakedIn": null,
-      "exitsStarted": null,
-      "exitsFinalized": null,
-      "diemMinted": null,
-      "diemBurned": null,
-      "unexpectedMints": null,
-      "flowsVerified": false
+      "mintVenice": 430.06217201824956,
+      "mintStakers": 7786.4522876468955,
+      "mintOther": 0,
+      "stakedIn": 81982.2592635977,
+      "exitsStarted": 2402.8384448271863,
+      "exitsFinalized": 3469.7424669025913,
+      "diemMinted": 165.58533815059337,
+      "diemBurned": 2.884489256897203,
+      "unexpectedMints": [],
+      "flowsVerified": true,
+      "ruleEvents": [],
+      "externalOutflow": 0,
+      "largeOutflows": [],
+      "auditVerified": true
     },
     {
       "date": "2026-07-25",
@@ -9407,5 +9411,5 @@
       "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
     }
   ],
-  "repairCursor": "2026-07-23"
+  "repairCursor": "2026-07-24"
 }

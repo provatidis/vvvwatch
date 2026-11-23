@@ -2,7 +2,7 @@
 
 A daily, independently reproducible ledger of Venice’s VVV issuance, buybacks and DIEM collateral on Base. The dashboard follows the same completed-day approach as [Overwatch](https://github.com/provatidis/overwatch).
 
-**[Open VVV Watch](https://provatidis.github.io/vvvwatch/)** · [Latest dashboard data](data/latest.json) · [Protocol history](data/protocol.json) · [Burn and purchase evidence](data/burns.json)
+**[Open VVV Watch](https://provatidis.com/vvvwatch/)** · [Latest dashboard data](data/latest.json) · [Protocol history](data/protocol.json) · [Burn and purchase evidence](data/burns.json)
 
 ## Read the ledger
 

@@ -21,8 +21,10 @@ jobs:
     permissions:
       contents: write
       issues: write
+      pages: write
     outputs:
       degraded: ${{ steps.refresh.outputs.degraded }}
+      pages_mode: ${{ steps.pages.outputs.mode }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -31,7 +33,6 @@ jobs:
       - run: npm test
       - name: Refresh completed UTC days
         id: refresh
-        if: github.event_name != 'push'
         env:
           BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
         run: |
@@ -44,7 +45,6 @@ jobs:
           fi
       - run: npm run build
       - name: Commit verified evidence and alert state
-        if: github.event_name != 'push'
         run: |
           git add data/
           if ! git diff --cached --quiet; then
@@ -57,13 +57,40 @@ jobs:
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: dist
+      - name: Read Pages publishing mode
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mode=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.build_type')
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+      - name: Check out the published branch
+        if: steps.pages.outputs.mode == 'legacy'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: gh-pages
+          path: published
+      - name: Publish the static branch and request its Pages build
+        if: steps.pages.outputs.mode == 'legacy'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rsync -a --delete --exclude=.git dist/ published/
+          git -C published add -A
+          if ! git -C published diff --cached --quiet; then
+            git -C published config user.name 'github-actions[bot]'
+            git -C published config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git -C published commit -m "Publish VVV Watch for $(date -u +%F)"
+            git -C published push origin HEAD:gh-pages
+          fi
+          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" --silent
       - name: Deliver durable issue alerts
-        if: github.event_name != 'push'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/issues.mjs
   publish:
     needs: build
+    if: needs.build.outputs.pages_mode == 'workflow'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

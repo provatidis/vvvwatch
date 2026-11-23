@@ -1,4 +1,5 @@
 import { RULES, SALES } from './lib/config.js';
+import { diemTradeoff, holderSummary } from './lib/holders.js';
 
 const DAY = 86_400_000;
 const BLANK = '—';
@@ -7,7 +8,7 @@ const round = (value, digits = 0) => Number.isFinite(value) ? value.toLocaleStri
 const compact = (value, digits = 2) => Number.isFinite(value) ? value.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: digits }) : BLANK;
 const pct = (value, digits = 1) => Number.isFinite(value) ? `${round(value * 100, digits)}%` : BLANK;
 const multiple = (value, digits = 2) => Number.isFinite(value) ? `${value.toFixed(digits)}×` : BLANK;
-const money = (value, digits = 0) => Number.isFinite(value) ? `$${round(value, digits)}` : BLANK;
+const money = (value, digits = 0) => Number.isFinite(value) ? `$${value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}` : BLANK;
 const moneyShort = value => Number.isFinite(value) ? `$${compact(value)}` : BLANK;
 const signed = (value, format = round) => Number.isFinite(value) ? `${value > 0 ? '+' : value < 0 ? '−' : ''}${format(Math.abs(value))}` : BLANK;
 const divide = (value, denominator) => Number.isFinite(value) && denominator > 0 ? value / denominator : null;
@@ -338,8 +339,91 @@ function renderRules(s) {
     datum('Control Safe',safe(v.controlSafe),'Signatures required'),datum('Buyback Safe',safe(v.buybackSafe),'Signatures required'),datum('Annual issuance rate',compact(v.emissionRatePerYear),'VVV per year'),datum('Locked-stake share',pct(v.venicePctLocked),'Paid to Venice')].join('')}</div>${details('Show contract parameters',list(parameters))}${details(`Onchain changes (${changes.length})`,changesTable)}${policy?details('Dated policy events',policy):''}`;
 }
 
+const priceTime = iso => {
+  const d = new Date(iso);
+  return Number.isFinite(d.getTime()) ? `${d.toLocaleDateString('en-GB',{timeZone:'UTC',day:'numeric',month:'short'})} ${d.toLocaleTimeString('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit'})} UTC` : BLANK;
+};
+const years = n => `${round(n,1)} ${n === 1 ? 'year' : 'years'}`;
+const calc = {n: 1, use: 1, years: 1};
+
+function renderHolders(s) {
+  const h = holderSummary(s);
+  const y = h.yields, v = h.value, w30 = s.supply?.windows?.['30'];
+  const priceNote = h.pVVV ? `at $${round(h.pVVV,2)} (CoinGecko, ${priceTime(s.prices.vvv.asOf)})` : 'VVV price unavailable';
+  const staking = y && Number.isFinite(h.g) ? `<article class="panel"><div class="subhead"><h3>Staking against dilution</h3><span class="fine">${escape(stamp(w30?.end || s.lastDay))}</span></div>
+<p class="fine">Staking mints new VVV to stakers. Holders who don’t stake own a shrinking share as supply grows.</p>
+<div class="subgrid">${[
+    datum('Staked VVV', pct(y.aprU,2), `A year, paid in VVV · ${Number.isFinite(h.cooldownDays) ? `${round(h.cooldownDays,1)}-day unstake` : 'unstake cooldown'}`),
+    datum('Staked and locked for DIEM', pct(y.aprL,2), Number.isFinite(h.lockedKeeps) ? `A year · ${pct(h.lockedKeeps,0)} of the staking rate` : 'A year'),
+    datum('Not staked', signed(h.share.unstaked, x => pct(x,1)), 'Change in your share of supply, a year')].join('')}</div>
+<p class="holders-lead">Supply grew ${pct(h.g,2)} a year over the last 30 days. At today’s rate, staked VVV grows its share of supply by ${pct(h.share.staked,1)} a year; unstaked VVV loses ${pct(Math.abs(h.share.unstaked),1)}.</p>
+<p class="fine">Simple yearly rates at today’s emission rate and staked supply. More staking spreads the same emissions thinner.</p></article>`
+    : `<article class="panel"><h3>Staking against dilution</h3>${empty('Pending: staking settings or a complete 30-day window are missing.')}</article>`;
+  const worth = `<article class="panel"><div class="subhead"><h3>What holders get</h3><span class="fine">${escape(stamp(w30?.end || s.lastDay))}</span></div>
+<p class="fine">VVV has no claim on Venice’s revenue. Holders get burns, paid from sales and a monthly buyback.</p>
+<div class="subgrid">${[
+    datum('Burned a year', pct(v.burnRate,2), 'Share of supply, at the 30-day pace'),
+    datum('Minted a year', pct(v.emitRate,2), 'Share of supply, at the 30-day pace'),
+    datum('Burns as share of sales', pct(v.salesShare,1), 'Per-sale and monthly burns, 30 days'),
+    datum('Market value ÷ sales', multiple(v.psAll,1), Number.isFinite(v.psExVenice) ? `All unburned VVV · ${multiple(v.psExVenice,1)} without Venice’s Safes` : 'All unburned VVV')].join('')}</div>
+<p class="fine">Market value uses all VVV outside the burn addresses, ${escape(priceNote)}. CoinGecko’s market cap uses a smaller circulating supply, so it’s lower. Sales are estimated from burn payments at list prices; see <a href="#sales">Signup and credit purchases</a>.</p></article>`;
+  const diem = `<article class="panel wide"><div class="subhead"><h3>Mint DIEM: use the credits or sell the DIEM</h3><span class="fine">${escape(priceNote)}</span></div>
+<p class="fine">Locking sVVV mints DIEM. Staked DIEM gives $1 of Venice credit a day; DIEM can also be sold. The locked sVVV earns less, and getting it back takes the same number of DIEM.</p>
+<form class="calc" id="diem-calc" novalidate>
+<label for="calc-n">DIEM to mint<input id="calc-n" type="number" inputmode="numeric" min="1" max="500" step="1" value="${calc.n}"></label>
+<label for="calc-use">Credit you’d use per day, per DIEM <output id="calc-use-out" for="calc-use">${money(calc.use,2)}</output><input id="calc-use" type="range" min="0" max="1" step="0.05" value="${calc.use}"></label>
+<label for="calc-years">Years held<input id="calc-years" type="number" inputmode="decimal" min="0.5" max="5" step="0.5" value="${calc.years}"></label>
+</form>
+<div id="calc-out" aria-live="polite"></div></article>`;
+  $('holders-panel').innerHTML = staking + worth + diem;
+  $('holders-source').innerHTML = 'Venice’s control Safe sets the emission rate, the share on locked stake and the DIEM curve, and has changed them without a vote. Every change is listed under <a href="#rules">Rules and control</a>.';
+  const form = $('diem-calc');
+  form.addEventListener('submit', event => event.preventDefault());
+  form.addEventListener('input', () => {
+    const clamp = (value, low, high, fallback) => Number.isFinite(value) ? Math.min(high, Math.max(low, value)) : fallback;
+    calc.n = Math.round(clamp(Number($('calc-n').value), 1, 500, calc.n));
+    calc.use = clamp(Number($('calc-use').value), 0, 1, calc.use);
+    calc.years = clamp(Number($('calc-years').value), 0.5, 5, calc.years);
+    $('calc-use-out').textContent = money(calc.use, 2);
+    renderCalc(s, h);
+  });
+  renderCalc(s, h);
+}
+
+function renderCalc(s, h) {
+  const d = s.diem, y = h.yields;
+  const t = diemTradeoff({n: calc.n, usePerDay: calc.use, years: calc.years, supply: d?.supply, curve: s.rules?.values?.curve,
+    aprU: y?.aprU, aprL: y?.aprL, pVVV: h.pVVV, pDIEM: h.pDIEM});
+  if (!t) {
+    $('calc-out').innerHTML = empty(Number.isFinite(d?.supply) ? `Minting ${round(calc.n)} DIEM would run past the end of the published curve.` : 'DIEM supply or the mint curve is unavailable.');
+    return;
+  }
+  const n = calc.n, them = n === 1 ? 'it costs' : 'they cost';
+  const lost = t.gap === 0 ? 'No staking rewards are given up.' : `Gives up ${round(t.forgoneVVV,2)} VVV${t.forgoneUsd !== null ? ` (${money(t.forgoneUsd)})` : ''} of staking rewards over ${years(calc.years)}.`;
+  const step = t.crossesStep ? ` The mint crosses a curve step, so the average rate is above today’s ${round(t.rateNow,1)}.` : '';
+  const util = s.diem?.utilization;
+  const usage = Number.isFinite(util?.ratio) ? ` Across all staked DIEM, holders used ${pct(util.ratio)} of their daily credit over the last ${round(util.days)} days (<a href="https://venicestats.com/diem">VeniceStats</a>).` : '';
+  const breakEven = t.gap > 0 && Number.isFinite(t.breakEvenUse) ? ` Using about ${money(t.breakEvenUse,2)} a day per DIEM covers the lost rewards.` : '';
+  const ceiling = Number.isFinite(t.buybackTotal)
+    ? (t.buybackTotal > 0
+      ? `To unlock the sVVV later you buy back ${round(n)} DIEM. You’re ahead only if ${them} less than ${money(t.buybackTotal)}${n === 1 ? '' : ' in total'} after ${years(calc.years)}${n === 1 ? '' : `, about ${money(t.buybackEach)} each`}.`
+      : `To unlock the sVVV later you buy back ${round(n)} DIEM. The lost rewards already exceed today’s sale value.`)
+    : 'Needs current VVV and DIEM prices.';
+  const target = Number.isFinite(d?.target) ? `${round(d.target)} target` : 'target';
+  $('calc-out').innerHTML = `<p class="holders-lead">Locks ${round(t.svvv,1)} sVVV${t.lockedUsd !== null ? ` (${money(t.lockedUsd)})` : ''}, ${round(t.rateAvg,1)} sVVV per DIEM. ${escape(lost)}${escape(step)}</p>
+<div class="calc-columns">
+<div class="calc-option"><h4>Use the credits</h4><strong class="calc-figure">${money(t.creditsUsd)}</strong><span class="datum-note">of credit used over ${years(calc.years)}</span>
+<p>After lost rewards: <b>${t.creditsNet !== null ? signed(t.creditsNet, x => money(x)) : BLANK}</b></p>
+<p class="fine">Credit runs out each day if unused.${usage}${breakEven}</p></div>
+<div class="calc-option"><h4>Sell the DIEM</h4><strong class="calc-figure">${money(t.saleUsd)}</strong><span class="datum-note">now${h.pDIEM ? `, at ${money(h.pDIEM,2)} each` : ''}</span>
+<p>${escape(ceiling)}</p>
+<p class="fine">The mint rate rises as DIEM supply grows, steeply past Venice’s ${escape(target)}, and Venice can change the curve; both tend to push DIEM’s price up.</p></div>
+</div>
+<p class="fine">${Number.isFinite(t.parity) ? `DIEM trades at ${pct(t.parity)} of the sVVV locked to mint it. ` : ''}Burning DIEM later unlocks sVVV at your own average mint rate; staked DIEM must first be unstaked, which takes ${Number.isFinite(s.rules?.values?.diemCooldown) ? `${round(s.rules.values.diemCooldown/86400,1)} ${s.rules.values.diemCooldown === 86400 ? 'day' : 'days'}` : 'a cooldown'}.</p>`;
+}
+
 function render(s) {
-  renderOverview(s); renderLedger(s); renderBuybacks(s); renderSales(s); renderDiem(s); renderTreasury(s); renderRules(s);
+  renderOverview(s); renderHolders(s); renderLedger(s); renderBuybacks(s); renderSales(s); renderDiem(s); renderTreasury(s); renderRules(s);
 }
 
 async function load() {
@@ -358,7 +442,7 @@ async function load() {
     $('error').hidden=false;
     $('error').innerHTML='The dashboard could not load its daily snapshot. <button type="button" id="retry">Retry</button> <a href="./data/latest.json">Open snapshot JSON ↗</a>';
     $('retry').addEventListener('click',load,{once:true});
-    for (const id of ['check-list','ledger-summary','ledger-trend','buyback-panel','sales-panel','diem-panel','treasury-panel','rules-panel']) $(id).innerHTML=empty('Data is unavailable.');
+    for (const id of ['check-list','holders-panel','ledger-summary','ledger-trend','buyback-panel','sales-panel','diem-panel','treasury-panel','rules-panel']) $(id).innerHTML=empty('Data is unavailable.');
   }
 }
 

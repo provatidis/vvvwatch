@@ -70,3 +70,21 @@ h1 { letter-spacing: 0; }
   .plot-caption { margin-left: 2.9rem; }
   .curve-readings small { display: block; }
 }
+/* For holders */
+.holders-note{font-size:13px;color:var(--muted);margin:-6px 0 14px}
+.holders-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.holders-grid .wide{grid-column:1/-1}
+.holders-lead{font-size:15px;line-height:1.5;margin:10px 0 6px}
+.calc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 20px;margin:16px 0 4px}
+.calc label{display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--muted)}
+.calc input[type=number]{font:inherit;font-size:16px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:9px 12px;min-height:44px;width:100%;box-sizing:border-box;font-variant-numeric:tabular-nums}
+.calc input[type=range]{width:100%;min-height:44px;margin:0;accent-color:var(--teal)}
+.calc input:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.calc output{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px}
+.calc-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0 10px}
+.calc-option{border:1px solid var(--light-rule);border-radius:8px;padding:16px;min-width:0}
+.calc-option h4{margin:0 0 8px}
+.calc-option p{font-size:14px;line-height:1.5;margin-top:10px}
+.calc-option .fine{font-size:13px}
+.calc-figure{display:block;font-size:clamp(24px,2.35vw,31px);line-height:1.2;letter-spacing:-.045em;font-weight:500;font-variant-numeric:tabular-nums}
+@media(max-width:680px){.holders-grid,.calc,.calc-columns{grid-template-columns:1fr}.calc{gap:12px}}

@@ -28,8 +28,10 @@
 /* Keep numeric comparisons legible at the same size as the surrounding text. */
 h1 { letter-spacing: 0; }
 .title-token { font-kerning: none; letter-spacing: .035em; }
-.cover-recent { margin: 0 0 13px; color: #c6dad5; font-size: .875rem; line-height: 1.45; }
-.cover-recent strong { color: var(--aqua); font-weight: 600; }
+.cover-context { margin-bottom: 13px; line-height: 1.45; }
+.cover-recent { color: #ecf6ef; font-size: .9375rem; font-weight: 500; }
+.cover-breakdown { color: #bfd3ce; font-size: .8125rem; }
+.cover-recent:not(:empty) + .cover-breakdown:not(:empty) { margin-top: 4px; }
 .check .check-why { border-top: 1px solid var(--light-rule); padding-top: 9px; margin-top: 9px; font-size: .8125rem; }
 .buyback-comparison { margin: 12px 0 6px; font-size: .9375rem; line-height: 1.55; }
 .burn-shares { max-width: 650px; }

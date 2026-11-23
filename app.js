@@ -1,5 +1,6 @@
 import { RULES, SALES } from './lib/config.js';
 import { diemTradeoff, holderSummary } from './lib/holders.js';
+import { burnCoverContext } from './lib/burn-cover.js';
 
 const DAY = 86_400_000;
 const BLANK = '—';
@@ -79,24 +80,19 @@ function drawGauge(ratio) {
   const ticks = Array.from({length:21}, (_,i) => `<path d="M${point(i/20, i%5 ? 74 : 70)} L${point(i/20,79)}" stroke="#8aa6a2" stroke-width="${i%5 ? 1 : 1.6}"/>`).join('');
   const pointer = Number.isFinite(ratio) ? `<path d="M104 92 L${point(Math.min(1,Math.max(0,ratio)),67)}" stroke="#89e2d3" stroke-width="3.2" stroke-linecap="round"/><circle cx="104" cy="92" r="4.5" fill="#89e2d3"/>` : '';
   const progress = Number.isFinite(ratio) ? `<path d="M20 92 A84 84 0 0 1 188 92" fill="none" pathLength="100" stroke="#79dcce" stroke-width="5" stroke-dasharray="${Math.min(100,Math.max(0,ratio * 100))} 101"/>` : '';
-  return `<svg viewBox="0 0 208 113"><path d="M20 92 A84 84 0 0 1 188 92" fill="none" stroke="#3d5c5d" stroke-width="5"/>${progress}${ticks}${pointer}<text class="gauge-label" x="19" y="108" text-anchor="middle">0×</text><text class="gauge-label" x="188" y="108" text-anchor="middle">1×</text></svg>`;
+  return `<svg viewBox="0 0 208 113"><path d="M20 92 A84 84 0 0 1 188 92" fill="none" stroke="#3d5c5d" stroke-width="5"/>${progress}${ticks}${pointer}<text class="gauge-label" x="19" y="108" text-anchor="middle">0%</text><text class="gauge-label" x="188" y="108" text-anchor="middle">100%</text></svg>`;
 }
 
 function renderOverview(s) {
   const w = s.supply?.windows?.['90'];
   const cover = s.checks?.find(check => check.id === 'cover');
+  const context = burnCoverContext(s.supply?.windows);
   $('cover-grade').innerHTML = grade(cover?.state);
-  $('cover-value').textContent = multiple(w?.ratio,3);
-  $('cover-note').textContent = Number.isFinite(w?.ratio) ? `Burns offset ${pct(w.ratio)} of issuance` : 'Awaiting a complete 90-day window';
-  const recent = s.supply?.windows?.['30'];
-  const recentNote = $('cover-recent');
-  recentNote.hidden = !Number.isFinite(recent?.ratio);
-  if (!recentNote.hidden) {
-    const previous = recent.priorRatio;
-    const change = recent.ratio > previous ? 'up from' : recent.ratio < previous ? 'down from' : 'level with';
-    const comparison = Number.isFinite(previous) ? `, ${change} ${pct(previous)} in the prior 30 days` : '';
-    recentNote.innerHTML = `30-day cover <strong>${pct(recent.ratio)}</strong>${comparison}`;
-  }
+  $('cover-value').textContent = pct(w?.ratio);
+  $('cover-note').textContent = context.thresholdNote;
+  $('cover-recent').textContent = context.trend;
+  $('cover-breakdown').textContent = context.breakdown;
+  $('cover-context').hidden = !context.trend && !context.breakdown;
   $('gauge').innerHTML = drawGauge(w?.ratio);
   const old = Date.now() - utcMidnight(s.lastDay) >= 3 * DAY;
   $('asof').innerHTML = `Data through <strong>${date(s.lastDay)} UTC</strong>${old ? ' · older snapshot' : ''}${s.evidence?.endBlock ? ` · Base block ${blockLink(s.evidence.endBlock)}` : ''}`;

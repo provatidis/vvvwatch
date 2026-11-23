@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { contiguous, dayOffset, grade, makeSnapshot, supplyWindow } from '../lib/metrics.js';
 import { planAlerts } from '../lib/alerts.js';
+import { burnCoverContext } from '../lib/burn-cover.js';
 import { summarizedUsage } from '../scripts/context.mjs';
 
 const end = '2026-11-22';
@@ -24,6 +25,39 @@ test('90-day and 30-day grades use their own windows and opening block', () => {
   assert.equal(data.supply.windows[30].ratio, 0.33);
   assert.equal(data.checks.find(c => c.id === 'cover').state, 'alert');
   assert.equal(data.evidence.startBlock90, rows[1].fromBlock - 1);
+  const check = data.checks.find(c => c.id === 'cover');
+  assert.match(check.text, /90-day cover was 23.0%, below the 25% threshold/);
+  assert.match(check.text, /rose from 18.0% to 33.0%/);
+  assert.match(check.text, /split by burn program is unavailable/);
+});
+
+test('22 November 2026 cover reports both complete periods and program contributions to issuance', () => {
+  const minted = 164385.46423135465;
+  const windows = {
+    90: {ratio: 130735.77514623756 / 555187.8488077118},
+    30: {ratio: 53491.07202068586 / minted, priorRatio: 39278.8655 / 174782.7562, minted,
+      burnAttribution: {burnSales: 31791.49419095926, burnMonthly: 21657, burnOther: 42.5778297266}}
+  };
+  assert.deepEqual(burnCoverContext(windows), {
+    level: '90-day cover was 23.5%, below the 25% threshold.',
+    thresholdNote: 'Below the 25% threshold',
+    trend: 'Over 30 days, cover rose from 22.5% to 32.5%.',
+    breakdown: 'Purchase-linked burns covered 19.3% of issuance. Monthly buybacks added 13.2 percentage points.'
+  });
+});
+
+test('burn-cover comparisons distinguish equal, falling, missing and rounded readings', () => {
+  const describe = (ratio, priorRatio, longRatio) => burnCoverContext({30:{ratio,priorRatio},90:{ratio:longRatio}});
+  assert.match(describe(0, 0.26, 0.25).trend, /fell from 26.0% to 0.0%/);
+  assert.equal(describe(0, 0.26, 0.25).thresholdNote, 'At the 25% threshold');
+  assert.match(describe(0.325, 0.325).trend, /unchanged at 32.5%/);
+  assert.match(describe(0.3253, 0.3252).trend, /rose slightly/);
+  assert.equal(describe(0, null, 0.24998).thresholdNote, 'Just below the 25% threshold');
+  assert.equal(describe(0, null, 0.2495).level, '90-day cover was 25.0%, just below the 25% threshold.');
+  assert.match(describe(0, null).trend, /0.0%.*comparison is unavailable/);
+  assert.match(burnCoverContext().level, /needs 90 complete days/);
+  assert.match(burnCoverContext().trend, /needs 30 complete days/);
+  assert.equal(burnCoverContext().breakdown, '');
 });
 
 test('pending principal preserves tracked treasury holdings across unstaking', () => {

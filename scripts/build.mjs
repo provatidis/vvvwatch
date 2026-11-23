@@ -8,7 +8,7 @@ if (snapshot.schemaVersion !== 1 || !snapshot.lastDay || !snapshot.supply?.histo
 }
 await mkdir(new URL('data/', dist), {recursive: true});
 await mkdir(new URL('lib/', dist), {recursive: true});
-for (const file of ['.nojekyll', 'CNAME', 'index.html', 'styles.css', 'app.js', 'assets', 'lib/config.js', 'lib/holders.js', 'data/latest.json']) {
+for (const file of ['.nojekyll', 'CNAME', 'index.html', 'styles.css', 'app.js', 'assets', 'lib/config.js', 'lib/holders.js', 'lib/burn-cover.js', 'data/latest.json']) {
   await cp(new URL(file, root), new URL(file, dist), {recursive: true});
 }
 console.log('Built static site in dist/ with data to ' + snapshot.lastDay);

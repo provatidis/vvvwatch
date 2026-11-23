@@ -27,8 +27,10 @@ test('90-day and 30-day grades use their own windows and opening block', () => {
   assert.equal(data.evidence.startBlock90, rows[1].fromBlock - 1);
   const check = data.checks.find(c => c.id === 'cover');
   assert.match(check.text, /90-day cover was 23.0%, below the 25% threshold/);
-  assert.match(check.text, /rose from 18.0% to 33.0%/);
-  assert.match(check.text, /split by burn program is unavailable/);
+  assert.match(check.text, /2,070 VVV against 9,000 VVV minted/);
+  const hero = burnCoverContext(data.supply.windows);
+  assert.ok(!check.text.includes(hero.trend));
+  assert.ok(!check.text.includes(hero.breakdown));
 });
 
 test('22 November 2026 cover reports both complete periods and program contributions to issuance', () => {
@@ -41,17 +43,17 @@ test('22 November 2026 cover reports both complete periods and program contribut
   assert.deepEqual(burnCoverContext(windows), {
     level: '90-day cover was 23.5%, below the 25% threshold.',
     thresholdNote: 'Below the 25% threshold',
-    trend: 'Over 30 days, cover rose from 22.5% to 32.5%.',
+    trend: 'Burns covered 32.5% of issuance in the last 30 days, up from 22.5% in the preceding 30 days.',
     breakdown: 'Purchase-linked burns covered 19.3% of issuance. Monthly buybacks added 13.2 percentage points.'
   });
 });
 
 test('burn-cover comparisons distinguish equal, falling, missing and rounded readings', () => {
   const describe = (ratio, priorRatio, longRatio) => burnCoverContext({30:{ratio,priorRatio},90:{ratio:longRatio}});
-  assert.match(describe(0, 0.26, 0.25).trend, /fell from 26.0% to 0.0%/);
+  assert.match(describe(0, 0.26, 0.25).trend, /0.0% of issuance in the last 30 days, down from 26.0% in the preceding 30 days/);
   assert.equal(describe(0, 0.26, 0.25).thresholdNote, 'At the 25% threshold');
-  assert.match(describe(0.325, 0.325).trend, /unchanged at 32.5%/);
-  assert.match(describe(0.3253, 0.3252).trend, /rose slightly/);
+  assert.match(describe(0.325, 0.325).trend, /32.5% of issuance in the last 30 days, unchanged from the preceding 30 days/);
+  assert.match(describe(0.3253, 0.3252).trend, /slightly up from the preceding 30 days/);
   assert.equal(describe(0, null, 0.24998).thresholdNote, 'Just below the 25% threshold');
   assert.equal(describe(0, null, 0.2495).level, '90-day cover was 25.0%, just below the 25% threshold.');
   assert.match(describe(0, null).trend, /0.0%.*comparison is unavailable/);

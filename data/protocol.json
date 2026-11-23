@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T15:15:38.667Z",
+  "generatedAt": "2026-11-23T15:20:49.170Z",
   "lastDay": "2026-11-22",
   "source": {
     "name": "Base mainnet · finalized UTC closing blocks",
@@ -18,8 +18,8 @@
   },
   "coverage": {
     "firstClosingCheckpoint": "2026-07-17",
-    "verifiedFlowDays": 35,
-    "verifiedAuditDays": 35
+    "verifiedFlowDays": 36,
+    "verifiedAuditDays": 36
   },
   "days": [
     {
@@ -131,16 +131,20 @@
         "vvvOwner": "0x321b7ff75154472b18edb199033ff4d116f340ff",
         "diemCooldown": 86400
       },
-      "mintVenice": null,
-      "mintStakers": null,
-      "mintOther": null,
-      "stakedIn": null,
-      "exitsStarted": null,
-      "exitsFinalized": null,
-      "diemMinted": null,
-      "diemBurned": null,
-      "unexpectedMints": null,
-      "flowsVerified": false
+      "mintVenice": 437.29892814695154,
+      "mintStakers": 7782.830447804342,
+      "mintOther": 0,
+      "stakedIn": 118393.1121437665,
+      "exitsStarted": 4639.157596078642,
+      "exitsFinalized": 20230.923197215387,
+      "diemMinted": 9.176957980905616,
+      "diemBurned": 169.66375907894383,
+      "unexpectedMints": [],
+      "flowsVerified": true,
+      "ruleEvents": [],
+      "externalOutflow": 0,
+      "largeOutflows": [],
+      "auditVerified": true
     },
     {
       "date": "2026-07-19",
@@ -9230,5 +9234,5 @@
       "tx": "0x424dd14ac00569f5e0d768a3a45459d2248567f3b8665a337131cd2235939b6d"
     }
   ],
-  "repairCursor": ""
+  "repairCursor": "2026-07-18"
 }

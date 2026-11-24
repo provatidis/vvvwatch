@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastDay": "2026-11-22",
+  "lastDay": "2026-11-23",
   "sales": {
     "days": [
       {
@@ -2441,6 +2441,45 @@
         },
         "evidenceSha256": "afc6f89440b78f49e96d4293787a9c6c5782c854eedf0495ad29323387fde49d",
         "fundingEvidenceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "date": "2026-11-23",
+        "fromBlock": 61008122,
+        "toBlock": 61440121,
+        "blockHash": "0xfaef0fc4a2f5283c9558227502e6f949952ed605ca16264c34b8e5e42076d360",
+        "pro": 2888,
+        "proplus": 223,
+        "max": 23,
+        "credits": 3589,
+        "unknown": 0,
+        "estimatedUsd": 430648,
+        "burnUsdc": 25066,
+        "confirmedBurnEvents": 6723,
+        "unknownReasons": {},
+        "examples": {
+          "pro": "0x0a501694ecb9aeff9d866de2c7cd8201761bb4fd8ddd4fc495cf74376b878e6c",
+          "credits": "0x128be85a5721977e9c3a54ee6fbd775dc89725240d8f803f10fb54abed3e90df",
+          "proplus": "0xf6bdae66abe194cf9f017d0c81889942bc49dd3fe18b2b3f759e1f466f992d56",
+          "max": "0x0e9a3918af94e607bae7258baa90a8bd9d2f35d09461e9ef90fd3f9f07335668"
+        },
+        "unpairedPoolBurns": 0,
+        "burnSales": 986.2467122331045,
+        "burnMonthly": 0,
+        "burnOther": 0.551638,
+        "burnTx": 6724,
+        "raw": {
+          "salesVvv": "986246712233104464889",
+          "monthlyVvv": "0",
+          "otherVvv": "551638000000000000",
+          "recognizedUsdc": "25370637500",
+          "unknownUsdc": "0",
+          "balanceChangeVvv": "986798350233104464889",
+          "openingUsdc": "61862543096",
+          "incomingUsdc": "0",
+          "closingUsdc": "36491905596"
+        },
+        "evidenceSha256": "6565a2a819f916ef212579319fa5c0a9577bc9f8582bf4c754bdf8ea0f15fffb",
+        "fundingEvidenceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       }
     ],
     "reference": {
@@ -3603,8 +3642,8 @@
     }
   },
   "buybacks": {
-    "asOf": "2026-11-22",
-    "endBlock": 61008121,
+    "asOf": "2026-11-23",
+    "endBlock": 61440121,
     "cycles": [
       {
         "date": "2026-06-08",

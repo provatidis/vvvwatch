@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-23T22:27:17.500Z",
-  "lastDay": "2026-11-22",
+  "generatedAt": "2026-11-24T14:18:20.686Z",
+  "lastDay": "2026-11-23",
   "source": {
     "name": "Base mainnet · finalized UTC closing blocks",
     "url": "https://basescan.org/token/0xacfE6019Ed1A7Dc6f7B508C02d1b04ec88cC21bf",
@@ -18,8 +18,8 @@
   },
   "coverage": {
     "firstClosingCheckpoint": "2026-07-17",
-    "verifiedFlowDays": 40,
-    "verifiedAuditDays": 42
+    "verifiedFlowDays": 42,
+    "verifiedAuditDays": 44
   },
   "days": [
     {
@@ -708,16 +708,20 @@
         "vvvOwner": "0x321b7ff75154472b18edb199033ff4d116f340ff",
         "diemCooldown": 86400
       },
-      "mintVenice": null,
-      "mintStakers": null,
-      "mintOther": null,
-      "stakedIn": null,
-      "exitsStarted": null,
-      "exitsFinalized": null,
-      "diemMinted": null,
-      "diemBurned": null,
-      "unexpectedMints": null,
-      "flowsVerified": false
+      "mintVenice": 434.1490576391768,
+      "mintStakers": 7788.073164583046,
+      "mintOther": 0,
+      "stakedIn": 37923.036792806655,
+      "exitsStarted": 3944.8700538414387,
+      "exitsFinalized": 225819.00652670633,
+      "diemMinted": 7.0778585854292535,
+      "diemBurned": 4.855782746861447,
+      "unexpectedMints": [],
+      "flowsVerified": true,
+      "ruleEvents": [],
+      "externalOutflow": 0,
+      "largeOutflows": [],
+      "auditVerified": true
     },
     {
       "date": "2026-07-28",
@@ -8122,11 +8126,76 @@
       "externalOutflow": 0,
       "largeOutflows": [],
       "auditVerified": true
+    },
+    {
+      "date": "2026-11-23",
+      "fromBlock": 61008122,
+      "toBlock": 61440121,
+      "blockHash": "0xfaef0fc4a2f5283c9558227502e6f949952ed605ca16264c34b8e5e42076d360",
+      "dailyMinted": 5479.832572298325,
+      "dailyBurned": 986.7983502331044,
+      "minted": 115259635.63958338,
+      "staked": 32549635.116501193,
+      "locked": 8590720.121647678,
+      "inStaking": 34104328.57842973,
+      "diemSupply": 37387.574436796,
+      "diemStaked": 29963.03490848163,
+      "veniceVvv": 20711692.951330308,
+      "veniceSvvv": 1197748.4524717736,
+      "veniceDiem": 0,
+      "buybackVvv": 11314.742380850315,
+      "burnWalletUsdc": 36491.905596,
+      "burned": 33973150.806432664,
+      "effective": 81286484.83315071,
+      "veniceCooldown": 0,
+      "mintRate": 467.6681153346494,
+      "raw": {
+        "minted": "115259635639583378233753021",
+        "staked": "32549635116501192167153409",
+        "locked": "8590720121647678283553093",
+        "inStaking": "34104328578429725224308730",
+        "diemSupply": "37387574436795998551582",
+        "diemStaked": "29963034908481630380870",
+        "veniceVvv": "20711692951330307600661487",
+        "veniceSvvv": "1197748452471773532538124",
+        "veniceDiem": "0",
+        "buybackVvv": "11314742380850315401647",
+        "burnWalletUsdc": "36491905596",
+        "burned": "33973150806432666329792227",
+        "effective": "81286484833150711903960794",
+        "veniceCooldown": "0",
+        "dailyMinted": "5479832572298325717428",
+        "dailyBurned": "986798350233104464889"
+      },
+      "parameters": {
+        "emissionRatePerYear": 2000000,
+        "venicePct": 0,
+        "venicePctLocked": 0.2,
+        "cooldown": 604800,
+        "treasury": "0x2d8cb8dc596dad0e1e34e2042e7ae6df93b11524",
+        "stakingOwner": "0x2d8cb8dc596dad0e1e34e2042e7ae6df93b11524",
+        "vvvOwner": "0x321b7ff75154472b18edb199033ff4d116f340ff",
+        "diemCooldown": 86400
+      },
+      "mintVenice": 285.4754762025347,
+      "mintStakers": 5194.357096095791,
+      "mintOther": 0,
+      "stakedIn": 20321.27998885984,
+      "exitsStarted": 525843.0847213877,
+      "exitsFinalized": 6700.172606554439,
+      "diemMinted": 12.137430388342478,
+      "diemBurned": 39.814696658350215,
+      "unexpectedMints": [],
+      "flowsVerified": true,
+      "ruleEvents": [],
+      "largeOutflows": [],
+      "externalOutflow": 0,
+      "auditVerified": true
     }
   ],
   "rules": {
-    "asOf": "2026-11-22",
-    "block": 61008121,
+    "asOf": "2026-11-23",
+    "block": 61440121,
     "values": {
       "emissionRatePerYear": 2000000,
       "venicePct": 0,
@@ -9415,5 +9484,5 @@
       "sourceUrl": "https://venice.ai/blog/tokenomics-update-credit-burns-and-diem-supply-expansion"
     }
   ],
-  "repairCursor": "2026-07-26"
+  "repairCursor": "2026-07-27"
 }

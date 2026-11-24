@@ -14,8 +14,8 @@
       "incident": null
     },
     "exits": {
-      "state": "healthy",
-      "incident": null
+      "state": "watch",
+      "incident": "check-exits-2026-11-23"
     },
     "diem": {
       "state": "healthy",
@@ -27,7 +27,9 @@
     },
     "burnWalletRunway": {
       "baselineLow": false,
-      "observations": {}
+      "observations": {
+        "2026-11-23": false
+      }
     },
     "trackedSafes": {
       "state": "healthy",
@@ -35,9 +37,15 @@
     }
   },
   "cursors": {
-    "monthly": "2026-11-22",
-    "rules": "2026-11-22",
+    "monthly": "2026-11-23",
+    "rules": "2026-11-23",
     "evidenceFrom": "2026-11-22"
   },
-  "issues": {}
+  "issues": {
+    "check-exits-2026-11-23": {
+      "title": "Staking exits · Watch",
+      "body": "828,637 VVV entered cooldown in seven days, equal to 2.5% of ending staked supply.\n\nCompleted UTC day: 2026-11-23.",
+      "open": true
+    }
+  }
 }

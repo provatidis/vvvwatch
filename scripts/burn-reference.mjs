@@ -28,6 +28,24 @@ export function referenceFromChart(chart, through) {
   return {source:url,asOf:days.at(-1).date,days};
 }
 
+export async function refreshReference(cached, through) {
+  try {
+    const response = await fetch(url, {signal: AbortSignal.timeout(18_000)});
+    if (!response.ok) throw Error('HTTP ' + response.status);
+    const current = referenceFromChart(await response.json(), through);
+    const records = new Map();
+    for (const day of cached?.days ?? []) {
+      if (day.date <= through) records.set(day.date, day);
+    }
+    for (const day of current.days) records.set(day.date, day);
+    const days = [...records.values()].sort((a,b) => a.date.localeCompare(b.date));
+    return {source:url, asOf:days.at(-1).date, days};
+  } catch (error) {
+    console.warn('Purchase reference: ' + error.message);
+    return cached ?? null;
+  }
+}
+
 if (process.argv[1] && pathToFileURL(process.argv[1]).href===import.meta.url) {
   const file=dataFile('burns.json'), local=process.argv[2];
   if (!local) throw Error('Pass the saved VeniceStats tier-era API response');

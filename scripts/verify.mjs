@@ -42,6 +42,22 @@ for (const [days, window] of Object.entries(snapshot.supply.windows)) {
   console.log(days + ' days verified against Base blocks ' + window.startBlock + ' and ' + window.endBlock);
 }
 
+if (process.argv.includes('--vesting')) {
+  const archived = snapshot.vesting?.history;
+  assert(archived?.windows?.[30] && archived.windows[90], 'Missing archived vesting windows');
+  const protocol = await readJSON(dataFile('protocol.json'));
+  const {readVestingHistory} = await import('./vesting-history.mjs');
+  const replay = await readVestingHistory(rpc, protocol, archived.streams);
+  assert.deepEqual(replay.windows, archived.windows, 'Archived stream balances disagree with Base');
+  assert.equal(replay.blockHash, archived.blockHash);
+  assert.equal(replay.streamCount, archived.streamCount);
+  for (const [days, period] of Object.entries(replay.windows)) {
+    const supply = snapshot.supply.windows[days];
+    for (const key of ['start', 'end', 'startBlock', 'endBlock']) assert.equal(period[key], supply[key]);
+  }
+  console.log(replay.streamCount + ' indexed VVV streams verified over 30 and 90 days.');
+}
+
 if (process.argv.includes('--rules') || process.argv.includes('--scan-rules')) {
   await verifyHistoricalEmissions(rpc);
   console.log('Historical emission receipts and their previous and new contract rates verified.');

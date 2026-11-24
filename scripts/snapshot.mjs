@@ -4,6 +4,9 @@ import { makeSnapshot } from '../lib/metrics.js';
 import { planAlerts } from '../lib/alerts.js';
 import { dataFile, readJSON, saveJSON } from './files.mjs';
 import { collectContext } from './context.mjs';
+import { refreshReference } from './burn-reference.mjs';
+import { collectVestingHistory } from './vesting-history.mjs';
+import { collectVesting } from './vesting.mjs';
 import { collectWallets } from './wallets.mjs';
 import { createRpc } from './rpc.mjs';
 
@@ -23,7 +26,22 @@ const [protocol, rawBurns, previous, journal] = await Promise.all([
   readJSON(dataFile('protocol.json')), readJSON(dataFile('burns.json')),
   readJSON(dataFile('latest.json'), null), readJSON(dataFile('alerts.json'), null)
 ]);
-const context = await collectContext(previous, protocol.lastDay);
+const [context, vesting, reference] = await Promise.all([
+  collectContext(previous, protocol.lastDay),
+  collectVesting(previous?.vesting, protocol.lastDay),
+  refreshReference(previous?.sales?.reference ?? rawBurns.sales.reference, protocol.lastDay)
+]);
+if (vesting) {
+  try {
+    vesting.history = await collectVestingHistory(createRpc(), protocol, vesting.totalStreams);
+  } catch (error) {
+    console.warn('Vesting history: ' + error.message);
+    const prior = previous?.vesting?.history;
+    vesting.history = prior?.blockHash === protocol.days.at(-1).blockHash && prior.asOf === protocol.lastDay ? prior : null;
+  }
+}
+context.vesting = vesting;
+rawBurns.sales.reference = reference;
 const cached = previous?.treasury;
 try {
   context.wallets = await collectWallets(createRpc(), protocol);

@@ -69,7 +69,8 @@ export function createRpc({ customUrl = process.env.BASE_RPC_URL, fetcher = fetc
 
 export async function readContractWords(rpc, calls, block) {
   const packed = encodeAggregate3(calls.map(([to, data]) => ({ to, data, allowFailure: false })));
-  const raw = await rpc.call('eth_call', [{ to: MULTICALL3, data: packed }, hex(block)]);
+  const at = typeof block === 'object' ? block : hex(block);
+  const raw = await rpc.call('eth_call', [{ to: MULTICALL3, data: packed }, at]);
   if (
     typeof raw !== 'string' ||
     !/^0x(?:[a-f0-9]{64}){2,}$/i.test(raw) ||

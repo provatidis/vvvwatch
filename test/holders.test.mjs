@@ -145,3 +145,13 @@ test('the build copies every module the page imports', async () => {
   assert.ok(imported.includes('lib/holders.js'));
   for (const file of imported) assert.ok(build.includes(`'${file}'`), `${file} is not copied by scripts/build.mjs`);
 });
+
+test('reported circulating value requires a recent official count and a fresh price', () => {
+  const value = (vvv, age) => holderSummary({...snapshot,supply:{...snapshot.supply,
+    circulating:{vvv,observedAt:new Date(now-age).toISOString()}}},now).value;
+  const v = value(49_000_000,3600_000);
+  near(v.circulatingMultiple, v.psAll * 49_000_000 / snapshot.supply.effective, 1e-9);
+  assert.equal(value(49_000_000,25*3600_000).circulatingMultiple,null);
+  assert.equal(value(-1,0).circulatingMultiple,null);
+  assert.equal(holderSummary(snapshot,now).value.circulatingMultiple,null);
+});

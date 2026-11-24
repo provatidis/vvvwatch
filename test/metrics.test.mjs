@@ -42,7 +42,7 @@ test('22 November 2026 cover reports both complete periods and program contribut
   };
   assert.deepEqual(burnCoverContext(windows), {
     level: '90-day cover was 23.5%, below the 25% threshold.',
-    thresholdNote: 'Below the 25% threshold',
+    thresholdNote: 'Burns retired 23.5 VVV for every 100 minted. Cover is 1.5 percentage points below our 25% alert line.',
     trend: 'Burns covered 32.5% of issuance in the last 30 days, up from 22.5% in the preceding 30 days.',
     breakdown: 'Purchase-linked burns covered 19.3% of issuance. Monthly buybacks added 13.2 percentage points.'
   });
@@ -51,10 +51,10 @@ test('22 November 2026 cover reports both complete periods and program contribut
 test('burn-cover comparisons distinguish equal, falling, missing and rounded readings', () => {
   const describe = (ratio, priorRatio, longRatio) => burnCoverContext({30:{ratio,priorRatio},90:{ratio:longRatio}});
   assert.match(describe(0, 0.26, 0.25).trend, /0.0% of issuance in the last 30 days, down from 26.0% in the preceding 30 days/);
-  assert.equal(describe(0, 0.26, 0.25).thresholdNote, 'At the 25% threshold');
+  assert.equal(describe(0, 0.26, 0.25).thresholdNote, 'Burns retired 25 VVV for every 100 minted. Cover is at our 25% alert line.');
   assert.match(describe(0.325, 0.325).trend, /32.5% of issuance in the last 30 days, unchanged from the preceding 30 days/);
   assert.match(describe(0.3253, 0.3252).trend, /slightly up from the preceding 30 days/);
-  assert.equal(describe(0, null, 0.24998).thresholdNote, 'Just below the 25% threshold');
+  assert.equal(describe(0, null, 0.24998).thresholdNote, 'Burns retired 25 VVV for every 100 minted. Cover is less than 0.1 percentage point below our 25% alert line.');
   assert.equal(describe(0, null, 0.2495).level, '90-day cover was 25.0%, just below the 25% threshold.');
   assert.match(describe(0, null).trend, /0.0%.*comparison is unavailable/);
   assert.match(burnCoverContext().level, /needs 90 complete days/);

@@ -1,3 +1,4 @@
+const CIRCULATING = 'https://api.venice.ai/api/v1/vvv/circulatingsupply';
 const USAGE = 'https://venicestats.com/api/diem-usage';
 const PRICE = 'https://api.coingecko.com/api/v3/simple/price?ids=venice-token,diem&vs_currencies=usd&include_last_updated_at=true';
 const DAY = 86_400_000;
@@ -41,19 +42,32 @@ function quotes(data, now) {
   return {vvv: quote('venice-token'), diem: quote('diem'), url: PRICE};
 }
 
+export function circulatingObservation(body, now) {
+  const raw = body?.result;
+  if (typeof raw !== 'string' || !/^\d+(?:\.\d+)?$/.test(raw) || !Number.isFinite(Number(raw)) || Number(raw) <= 0) {
+    throw Error('Invalid Venice circulating supply');
+  }
+  return {vvv:Number(raw), observedAt:new Date(now).toISOString(), url:CIRCULATING};
+}
+
 export async function collectContext(previous, lastDay, now = Date.now()) {
-  const [usage, price] = await Promise.allSettled([
+  const [usage, price, circulating] = await Promise.allSettled([
     json(USAGE).then(data => summarizedUsage(data, lastDay)),
-    json(PRICE).then(data => quotes(data, now))
+    json(PRICE).then(data => quotes(data, now)),
+    json(CIRCULATING).then(data => circulatingObservation(data, now))
   ]);
-  for (const [name, result] of [['usage', usage], ['price', price]]) {
+  for (const [name, result] of [['usage', usage], ['price', price], ['circulating supply', circulating]]) {
     if (result.status === 'rejected') console.warn(name + ': ' + result.reason.message);
   }
   const priorUsage = previous?.diem?.utilization;
   const usageAge = Date.parse(lastDay) - Date.parse(priorUsage?.date);
+  const priorCirculating = previous?.supply?.circulating;
+  const supplyAge = now - Date.parse(priorCirculating?.observedAt);
+  const recentSupply = supplyAge >= 0 && supplyAge <= DAY && priorCirculating.url === CIRCULATING && priorCirculating.vvv > 0;
   const priorPrices = previous?.prices;
   const oldestQuote = Math.min(Date.parse(priorPrices?.vvv?.asOf), Date.parse(priorPrices?.diem?.asOf));
   return {
+    circulating: circulating.status === 'fulfilled' ? circulating.value : recentSupply ? priorCirculating : null,
     utilization: usage.status === 'fulfilled' ? usage.value : usageAge <= 2 * DAY ? priorUsage : null,
     prices: price.status === 'fulfilled' ? price.value : now - oldestQuote <= DAY ? priorPrices : null
   };

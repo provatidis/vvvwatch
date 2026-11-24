@@ -43,13 +43,63 @@ function theme() {
   });
 }
 
+function vestingHistory(s) {
+  const history = s.vesting.history;
+  const rows = [];
+  for (const days of [30, 90]) {
+    const stream = history?.windows?.[days];
+    const supply = s.supply?.windows?.[days];
+    if (!stream || !supply || !['start','end','startBlock','endBlock'].every(k => stream[k] === supply[k]) ||
+        ![stream.unlocked,stream.withdrawn,supply.minted,supply.burned].every(Number.isFinite)) continue;
+    rows.push([`${days} days`, round(stream.unlocked), round(stream.withdrawn), pct(divide(supply.burned, supply.minted + stream.unlocked))]);
+  }
+  if (!rows.length) return empty('Historical stream balances are unavailable for these supply windows.');
+  return `<h4>Verified stream activity</h4><p class="fine">${round(history.streamCount)} indexed VVV streams through ${date(history.asOf)} UTC · Base block ${blockLink(s.evidence?.endBlock)}</p>
+${table(['Window','Newly vested VVV','Withdrawn VVV','Burns ÷ (minted + vested)'],rows)}
+<p class="fine">A withdrawal can include VVV that vested earlier. The percentage compares burns with new minting and newly vested VVV over the same dates.</p>`;
+}
+
+function vestingPanel(s) {
+  const v = s.vesting;
+  const title = '<h3>Vesting and unlocks</h3>';
+  const source = '<a href="https://venicestats.com/vesting">VeniceStats vesting schedule</a>';
+  if (!v || !Number.isFinite(Date.parse(v.asOf))) {
+    return `<article class="panel wide" id="vesting">${title}<p class="fine">Vesting data is unavailable for this snapshot. See the ${source}.</p></article>`;
+  }
+  const rate = v.dailyDripRate;
+  const annualIssuance = s.rules?.values?.emissionRatePerYear;
+  const observationDay = utcMidnight(v.asOf.slice(0,10));
+  const rulesDay = utcMidnight(s.rules?.asOf);
+  const samePeriod = Math.abs(observationDay - rulesDay) <= DAY && s.sources?.protocol?.ok !== false;
+  const dailyIssuance = samePeriod && Number.isFinite(annualIssuance) && annualIssuance >= 0 ? annualIssuance / 365 : null;
+  const share = Number.isFinite(rate) && dailyIssuance !== null ? divide(rate, rate + dailyIssuance) : null;
+  const cliff = v.dripCliff;
+  const month = cliff?.date && new Date(cliff.date);
+  const asOfMonth = v.asOf.slice(0,7);
+  const futureStep = Number.isFinite(month?.getTime()) && cliff.date.slice(0,7) >= asOfMonth;
+  const grossChange = Number.isFinite(share) && Number.isFinite(cliff?.dropPct)
+    ? ` If issuance holds steady, the combined flow from minting and unlocks would fall about ${pct(share * cliff.dropPct / 100,0)}.` : '';
+  const schedule = futureStep && Number.isInteger(cliff.streamCount) && Number.isFinite(cliff.dropPct)
+    ? `<p class="holders-lead">${round(cliff.streamCount)} streams are scheduled to end in ${month.toLocaleDateString('en-GB',{month:'long',year:'numeric',timeZone:'UTC'})}. VeniceStats estimates the daily unlock rate will fall by about ${round(cliff.dropPct)}%.${grossChange}</p>` : '';
+  return `<article class="panel wide" id="vesting"><div class="subhead">${title}<span class="fine">VeniceStats · ${date(v.asOf)} UTC${v.cached ? ' · last good reading' : ''}</span></div>
+<p class="fine">Vesting makes previously issued VVV available to recipients. They can withdraw, hold, stake or sell it. An unlock leaves your share of effective supply unchanged.</p>
+<div class="subgrid">${[
+    datum('Scheduled unlock rate', round(rate), 'VVV per day'),
+    datum('30 days at this rate', Number.isFinite(rate) ? round(rate * 30) : BLANK, 'VVV if the daily rate holds'),
+    ...(share !== null ? [datum('Unlocks as share of gross inflow', pct(share), `At ${round(dailyIssuance)} VVV of scheduled issuance per day`)] : []),
+    datum('Withdrawn to date', round(v.totalWithdrawn), 'VVV claimed from tracked streams')
+  ].join('')}</div>${schedule}
+${vestingHistory(s)}
+<p class="fine">${source} · <a href="https://venicestats.com/api/vesting">Source data</a></p></article>`;
+}
+
 function renderOverview(s) {
   const fragments = overviewFragments(s);
   for (const [id, html] of Object.entries(fragments)) {
     const element = $(id);
     if (element.innerHTML !== html) element.innerHTML = html;
   }
-  $('cover-context').hidden = !fragments['cover-recent'] && !fragments['cover-breakdown'];
+  $('cover-context').hidden = !fragments['cover-note'] && !fragments['cover-recent'] && !fragments['cover-breakdown'];
 }
 
 function chartScale(maximum) {
@@ -119,7 +169,7 @@ function renderLedger(s) {
   const plot = valid ? lineChart(running,[{key:'minted',style:'mint'},{key:'burned',style:'burn'}], date(daily[0].date,false),date(s.lastDay,false),'Cumulative VVV minted and retired over the selected window') : empty('A complete daily series is required to plot this window.');
   $('ledger-trend').innerHTML = `<h3>Issuance against burns</h3><p class="fine">Cumulative VVV over ${d} completed days</p><div class="legend"><span><i class="sw-mint"></i>Minted</span><span><i class="sw-burn"></i>Retired</span></div>${plot}${valid ? details('Show daily amounts', table(['UTC day','Minted VVV','Retired VVV','Net VVV'],[...daily].reverse().map(r => [date(r.date),round(r.minted,2),round(r.burned,2),signed(r.minted-r.burned,v => round(v,2))]))) : ''}`;
   const ev = s.evidence || {}, start = d === 30 ? ev.startBlock30 : ev.startBlock90;
-  $('ledger-source').innerHTML = `Measured from changes in total VVV issued and the balances of the zero and dead addresses.${start && ev.endBlock ? ` Base blocks ${blockLink(start)} to ${blockLink(ev.endBlock)}.` : ''}`;
+  $('ledger-source').innerHTML = `Measured from changes in total VVV issued and the balances of the zero and dead addresses.${s.supply?.history?.[0]?.date ? ` The opening balance for this backfill is dated ${date(s.supply.history[0].date)} UTC.` : ''}${start && ev.endBlock ? ` Base blocks ${blockLink(start)} to ${blockLink(ev.endBlock)}.` : ''}`;
 }
 
 function renderBuybacks(s) {
@@ -142,27 +192,33 @@ function renderBuybacks(s) {
   ].join('')}</div>${comparison}${valuationSource}<p class="fine">${Number.isFinite(c.openingVvv) && Number.isFinite(c.boughtVvv) ? `The Safe carried ${round(c.openingVvv)} VVV into this cycle and bought ${round(c.boughtVvv)} VVV.` : 'Earlier Safe balances are unavailable for this cycle.'} ${txLink(c.tx,'Burn transaction ↗')}</p>${details('Show cycle ledger',table(['Burn date','Opening VVV','Bought VVV','Other net VVV','Burned VVV','Est. burn value','Closing VVV','USDC spent','Spending evidence','Evidence'],rows))}`;
 }
 
-function referencePurchases(reference, completeVerifiedWindow) {
+function referencePurchases(reference, verified) {
   if (!reference?.asOf || !reference.days?.length) return '';
-  const period = completeDays(reference.days,reference.asOf,30);
-  const day = reference.days.find(row => row.date === reference.asOf);
-  if (!day) return '';
-  const total = period.length && period.every(row => Number.isFinite(row.estimatedUsd))
-    ? period.reduce((sum, row) => sum + row.estimatedUsd, 0) : null;
-  const source = 'https://venicestats.com/burns';
-  const header = `<h4>VeniceStats purchase estimates</h4><p class="fine">External reference through ${date(day.date)} UTC. The purchase check uses independently matched onchain burns.</p>`;
-  const values = list([
-    ['Estimated purchases over 30 days',money(total)],
-    ['Estimated purchases on ' + date(day.date,false),money(day.estimatedUsd)],
-    ...Object.values(SALES.products).map(p=>[p.label + ' events on ' + date(day.date,false),round(day[p.id])])
-  ]);
-  const body = `${header}${values}<p class="fine"><a href="${source}">VeniceStats burn data ↗</a></p>`;
-  return completeVerifiedWindow ? details('Compare with VeniceStats',body) : body;
+  const dates = verified.length ? [reference.asOf, verified.at(-1).date].sort() : [reference.asOf];
+  const end = dates[0];
+  const local = completeDays(verified,end,30);
+  const external = completeDays(reference.days,end,30);
+  const sum = rows => rows.length === 30 && rows.every(row => Number.isFinite(row.estimatedUsd))
+    ? rows.reduce((total,row) => total + row.estimatedUsd,0) : null;
+  const localTotal = sum(local), externalTotal = sum(external);
+  const header = '<h4>Purchases over the same 30 days</h4>';
+  const source = '<a href="https://venicestats.com/burns">VeniceStats burn data</a>';
+  const datesNote = external.length ? `${date(external[0].date)} – ${date(end)} UTC.` : `Through ${date(end)} UTC.`;
+  const body = `${header}<p class="fine">${datesNote} VVV watch matches burn payments to retirements on Base. The VeniceStats comparison applies the same list prices to its event counts. Both estimates use public burn activity.</p>`;
+  const values = localTotal !== null && externalTotal !== null ? list([
+    ['VVV watch',money(localTotal)],['VeniceStats',money(externalTotal)],['VVV watch minus VeniceStats', signed(localTotal-externalTotal,money)]
+  ]) : empty('A comparison needs 30 complete days from both sources.') + (externalTotal !== null ? list([['VeniceStats estimate',money(externalTotal)]]) : '');
+  const last = reference.days.find(row => row.date === reference.asOf);
+  const daily = last ? details('VeniceStats events on ' + date(last.date), list([
+    ['Estimated purchases',money(last.estimatedUsd)], ...Object.values(SALES.products).map(p => [p.label,round(last[p.id])])
+  ])) : '';
+  const content = body + values + daily + `<p class="fine">${source} · reference history from ${date(reference.days[0].date)} UTC</p>`;
+  return verified.length ? details('Compare with VeniceStats',content) : content;
 }
 
 function renderSales(s) {
   const sales = s.sales, recent = [...(sales?.days || [])].sort((a,b) => a.date.localeCompare(b.date));
-  const reference = referencePurchases(sales?.reference,Number.isFinite(sales?.window30?.estimatedUsd));
+  const reference = referencePurchases(sales?.reference,recent);
   if (!sales || !recent.length) { $('sales-panel').innerHTML = empty('No verified purchase observations are available in this snapshot.') + reference; return; }
   const w = sales.window30, latest = recent.at(-1), used = completeDays(recent,latest.date,30);
   const rows = recent.slice().reverse().map(day => [date(day.date),round(day.pro),round(day.proplus),round(day.max),round(day.credits),round(typeof day.unknown === 'object' ? day.unknown?.count : day.unknown),money(day.estimatedUsd),money(day.burnUsdc)]);
@@ -175,7 +231,7 @@ function renderSales(s) {
   const share = Number.isFinite(w?.programmaticBurnShare) ? `<h4>Burns relative to estimated purchase value</h4><div class="subgrid burn-shares">${datum('Purchase-linked burn budget',pct(w.programmaticBurnShare),moneyShort(w.burnUsdc) + ' allocated over 30 days')}${Number.isFinite(w.totalBurnShare) ? datum('Including monthly burns',pct(w.totalBurnShare),'Adds the market value of monthly burns in the same 30 days') : datum('Including monthly burns',BLANK,'Awaiting burn valuations for the full period')}</div>` : '';
   $('sales-panel').innerHTML = `<div class="subhead"><h3>Estimated purchases · 30 days</h3><span class="fine">${escape(stamp(s.sources?.sales?.asOf || sales.asOf)+stale(s.sources?.sales))}</span></div><div class="subgrid">${[
     datum('Estimated purchases',moneyShort(w?.estimatedUsd),'Matched purchases at list prices'), datum('Annualized pace',moneyShort(w?.annualizedUsd),'30-day estimate × 365 / 30'), datum('Versus prior 30 days',signed(w?.change,pct),'Comparable completed windows')
-  ].join('')}</div>${reported}<p class="fine">The estimate applies list prices to matched purchases. Renewals, discounts, annual billing and transactions outside the burn program limit how closely it tracks company revenue.</p>${share}${productRows.length ? details('Show product mix',table(['Product','Events over 30d','List price','Estimated purchases'],productRows)) : ''}${details('Show daily purchase counts',table(['UTC day','Pro','Pro+','Max','Credit packs','Unknown','Estimated purchases','Burn USDC'],rows))}${reference}`;
+  ].join('')}</div>${reported}<p class="fine">The onchain purchase backfill starts ${date(recent[0].date)} UTC. The estimate applies list prices to matched purchases. Renewals, discounts, annual billing and transactions outside the burn program limit how closely it tracks company revenue.</p>${share}${productRows.length ? details('Show product mix',table(['Product','Events over 30d','List price','Estimated purchases'],productRows)) : ''}${details('Show daily purchase counts',table(['UTC day','Pro','Pro+','Max','Credit packs','Unknown','Estimated purchases','Burn USDC'],rows))}${reference}`;
 }
 
 // Snapshot conversion can put a contract boundary a few decimal places off its integer target.
@@ -238,7 +294,7 @@ function renderTreasury(s) {
   const t = s.treasury || {}, supply=s.supply || {};
   const holding = [t.vvv,t.svvv,t.cooldown].every(Number.isFinite) ? t.vvv+t.svvv+t.cooldown : null;
   const wallets = t.wallets || [];
-  const grouped = wallets.length ? `<div class="subhead"><h3>Tracked Safe holdings</h3><span class="fine">${escape(stamp(t.walletsAsOf)+stale(s.sources?.wallets))}${t.walletsBlock ? ' · '+blockLink(t.walletsBlock) : ''}</span></div><div class="subgrid">${datum('VVV in tracked Safes',compact(t.trackedSafeTotal),'Liquid, staked and in cooldown')}${datum('30-day change',signed(t.trackedSafeChange30,pct),'After direct emissions')}</div><p class="fine">The holdings check combines the wallets marked as included below. Transfers between them leave the combined balance unchanged.</p>${details('Show wallets and ownership evidence',table(['Wallet','Attribution','Holdings check','VVV','sVVV','In cooldown','30-day change (VVV)','DIEM'],wallets.map(w=>[`${escape(w.label)}<br>${address(w.address)}`,`${escape(w.attribution ?? w.role ?? '')} ${w.sourceUrl ? sourceLink(w.sourceUrl,'Evidence') : ''}`,w.inGrade ? 'Included' : 'Context only',round(w.vvv),round(w.svvv),round(w.cooldown),signed(w.change30),round(w.diem,1)])))}<hr class="divider">` : '';
+  const grouped = wallets.length ? `<div class="subhead"><h3>Tracked Safe holdings</h3><span class="fine">${escape(stamp(t.walletsAsOf)+stale(s.sources?.wallets))}${t.walletsBlock ? ' · '+blockLink(t.walletsBlock) : ''}</span></div><div class="subgrid">${datum('VVV in tracked Safes',compact(t.trackedSafeTotal),'Liquid, staked and in cooldown')}${datum('30-day change',signed(t.trackedSafeChange30,pct),'After direct emissions')}</div><p class="fine">The check combines Safes whose signer sets match the control Safe at both ends of the 30-day window. Wallet role names come from the <a href="https://venicestats.com/treasury">VeniceStats directory</a>. Transfers between the included Safes leave their combined balance unchanged.</p>${details('Show wallets and ownership evidence',table(['Wallet','Attribution','Holdings check','VVV','sVVV','In cooldown','30-day change (VVV)','DIEM'],wallets.map(w=>[`${escape(w.label)}<br>${address(w.address)}`,`${escape(w.attribution ?? w.role ?? '')} ${w.sourceUrl ? sourceLink(w.sourceUrl,'Evidence') : ''}`,w.inGrade ? 'Included' : 'Context only',round(w.vvv),round(w.svvv),round(w.cooldown),signed(w.change30),round(w.diem,1)])))}<hr class="divider">` : '';
   $('treasury-panel').innerHTML=`${grouped}<div class="subhead"><h3>Control Safe holdings</h3><span class="fine">${address(t.address)}</span></div><div class="subgrid">${[
     datum('Wallet VVV',compact(t.vvv),'Unstaked balance'),datum('Staked VVV',compact(t.svvv),'sVVV in the Safe'),datum('In cooldown',compact(t.cooldown),'Principal still owed to the Safe'),datum('Total tracked',compact(holding),'VVV equivalent')].join('')}</div><p class="fine">The tracked balance includes pending withdrawals. Transfers and unstaking can move VVV without a sale.</p>${details('Show protocol-wide staking',list([['Total effective VVV',round(supply.effective)],['Total staked VVV',round(supply.staked)],['Locked behind DIEM',round(supply.locked)],['Share of stake locked',pct(divide(supply.locked,supply.staked))]]))}`;
 }
@@ -310,22 +366,25 @@ function renderHolders(s) {
   if (w30?.end && s.sources?.protocol?.ok === false) windowNotes.push('last good supply reading');
   if (v.salesEnd && s.sources?.sales?.ok === false) windowNotes.push('last good sales reading');
   const staking = y && Number.isFinite(h.g) ? `<article class="panel"><div class="subhead"><h3>Staking against dilution</h3><span class="fine">${escape(stamp(w30?.end || s.lastDay))}</span></div>
-<p class="fine">Staking earns newly issued VVV. Your share of supply also depends on how much VVV is minted and burned.</p>
+<p class="fine">Staking earns newly issued VVV. Your share here is measured against all VVV outside burn addresses, including tokens still vesting.</p>
 <div class="subgrid">${[
     datum('Staked VVV', pct(y.aprU,2), `A year, paid in VVV · ${Number.isFinite(h.cooldownDays) ? `${round(h.cooldownDays,1)}-day unstake` : 'unstake cooldown'}`),
     datum('Staked and locked for DIEM', pct(y.aprL,2), Number.isFinite(h.lockedKeeps) ? `A year · ${pct(h.lockedKeeps,0)} of the staking rate` : 'A year'),
-    datum('Not staked', signed(h.share.unstaked, x => pct(x,1)), 'Change in your share of supply, a year')].join('')}</div>
+    datum('Not staked', signed(h.share.unstaked, x => pct(x,1)), 'Yearly change in your share of effective supply at the last 30 days’ pace')].join('')}</div>
 <p class="holders-lead">${escape(dilutionNote(h))}</p>
 <p class="fine">Simple yearly rates at today’s emission rate and staked supply. More staking spreads the same emissions thinner.</p></article>`
     : `<article class="panel"><h3>Staking against dilution</h3>${empty('Pending: staking settings or a complete 30-day window are missing.')}</article>`;
   const worth = `<article class="panel"><div class="subhead"><h3>What holders get</h3><span class="fine">${escape(windowNotes.join(' · '))}</span></div>
 <p class="fine">VVV has no claim on Venice’s revenue. Holders get burns, paid from sales and a monthly buyback.</p>
 <div class="subgrid">${[
-    datum('Burned a year', pct(v.burnRate,2), 'Share of supply, at the 30-day pace'),
-    datum('Minted a year', pct(v.emitRate,2), 'Share of supply, at the 30-day pace'),
-    datum('Burns as share of sales', pct(v.salesShare,1), 'Purchase-linked and monthly burns'),
-    datum('Market value ÷ sales', multiple(v.psAll,1), Number.isFinite(v.psExVenice) ? `${multiple(v.psExVenice,1)} excluding Venice’s Safes` : '')].join('')}</div>
-<p class="fine">Market value uses all VVV outside the burn addresses, ${escape(priceNote)}. CoinGecko’s market cap uses a smaller circulating supply, so it’s lower. Sales use 30 days of burn payments at list prices, annualized for the market value multiple. See <a href="#sales">Signup and credit purchases</a>.</p></article>`;
+    datum('Burned a year', pct(v.burnRate,2), 'Share of effective supply at the 30-day pace'),
+    datum('Minted a year', pct(v.emitRate,2), 'Share of effective supply at the 30-day pace'),
+    datum('Burns as share of estimated purchases', pct(v.salesShare,1), 'Purchase-linked and monthly burns')].join('')}</div>
+<h4>Token value ÷ annualized estimated purchases</h4><div class="subgrid">${[
+    datum('Reported circulating supply', multiple(v.circulatingMultiple,1), v.circulating ? `${compact(v.circulating)} VVV · Venice, ${priceTime(s.supply.circulating.observedAt)}` : 'Current Venice reading unavailable'),
+    datum('Effective supply', multiple(v.psAll,1), `${compact(s.supply?.effective)} VVV outside burn addresses`)
+  ].join('')}</div>
+<p class="fine">The denominator is <a href="#sales">estimated purchases at the last 30 days’ pace</a>. ${h.pVVV ? `VVV was ${money(h.pVVV,2)} at ${priceTime(s.prices.vvv.asOf)} (CoinGecko).` : 'The latest VVV price is unavailable.'} ${Number.isFinite(v.psExVenice) ? `Excluding Venice’s tracked Safes gives ${multiple(v.psExVenice,1)} on the effective-supply basis. ` : ''}<a href="https://api.venice.ai/api/v1/vvv/circulatingsupply">Venice circulating supply</a></p></article>`;
   const diem = `<article class="panel wide"><div class="subhead"><h3>Mint DIEM: use the credits or sell the DIEM</h3><span class="fine">${escape(priceNote)}</span></div>
 <p class="fine">Locking sVVV mints DIEM and reduces the staking rewards on that collateral. Each staked DIEM provides up to $1 of Venice credit per day.</p>
 <form class="calc" id="diem-calc" novalidate>
@@ -340,7 +399,7 @@ function renderHolders(s) {
 </form>
 <p id="calc-errors" class="calc-errors" role="status"></p>
 <div id="calc-out" aria-live="polite"></div></article>`;
-  $('holders-panel').innerHTML = staking + worth + diem;
+  $('holders-panel').innerHTML = staking + worth + vestingPanel(s) + diem;
   $('holders-source').innerHTML = 'Venice’s control Safe sets the emission rate, the share on locked stake and the DIEM curve, and has changed them without a vote. Every change is listed under <a href="#rules">Rules and control</a>.';
   const form = $('diem-calc');
   form.addEventListener('submit', event => event.preventDefault());

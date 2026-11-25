@@ -103,7 +103,7 @@ function renderOverview(s) {
     const element = $(id);
     if (element.innerHTML !== html) element.innerHTML = html;
   }
-  $('cover-context').hidden = !fragments['cover-note'] && !fragments['cover-recent'] && !fragments['cover-breakdown'];
+  $('cover-context').hidden = !fragments['cover-note'] && !fragments['cover-recent'] && !fragments['cover-drivers'] && !fragments['cover-breakdown'];
 }
 
 function chartScale(maximum) {
@@ -367,7 +367,7 @@ function renderHolders(s) {
 <p class="fine">Simple yearly rates at today’s emission rate and staked supply. More staking spreads the same emissions thinner.</p></article>`
     : `<article class="panel"><h3>Staking against dilution</h3>${empty('Pending: staking settings or a complete 30-day window are missing.')}</article>`;
   const worth = `<article class="panel"><div class="subhead"><h3>What holders get</h3><span class="fine">${escape(windowNotes.join(' · '))}</span></div>
-<p class="fine">VVV has no claim on Venice’s revenue. Holders get burns, paid from sales and a monthly buyback. <a href="https://venice.ai/lp/vvv">Staking at least 100 VVV currently unlocks Venice Pro</a>.</p>
+<p class="fine">VVV has no claim on Venice’s revenue. Holders get burns, paid from sales and a monthly buyback. <a href="https://venice.ai/faqs/all#faq-vvv-pro-features">Staking at least 100 VVV currently unlocks Venice Pro</a>. Venice may end staking rewards on those 100 VVV with at least 15 days’ notice.</p>
 <div class="subgrid">${[
     datum('Burned a year', pct(v.burnRate,2), 'Share of effective supply at the 30-day pace'),
     datum('Minted a year', pct(v.emitRate,2), 'Share of effective supply at the 30-day pace'),

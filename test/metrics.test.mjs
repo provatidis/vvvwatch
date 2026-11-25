@@ -42,8 +42,9 @@ test('22 November 2026 cover reports both complete periods and program contribut
   };
   assert.deepEqual(burnCoverContext(windows), {
     level: '90-day cover was 23.5%, below the 25% threshold.',
-    thresholdNote: 'Over 90 days, burns retired 23.5 VVV for every 100 minted. Cover is 1.5 percentage points below our 25% editorial alert line.',
+    thresholdNote: 'Over 90 days, burns retired 23.5 VVV for every 100 minted. Cover is 1.5 percentage points below our own 25% alert line.',
     trend: 'Burns covered 32.5% of issuance in the last 30 days, up from 22.5% in the preceding 30 days.',
+    detail: '',
     breakdown: 'Purchase-linked burns covered 19.3% of issuance. Monthly buybacks added 13.2 percentage points.'
   });
 });
@@ -51,12 +52,13 @@ test('22 November 2026 cover reports both complete periods and program contribut
 test('burn-cover comparisons distinguish equal, falling, missing and rounded readings', () => {
   const describe = (ratio, priorRatio, longRatio) => burnCoverContext({30:{ratio,priorRatio},90:{ratio:longRatio}});
   assert.match(describe(0, 0.26, 0.25).trend, /0.0% of issuance in the last 30 days, down from 26.0% in the preceding 30 days/);
-  assert.equal(describe(0, 0.26, 0.25).thresholdNote, 'Over 90 days, burns retired 25 VVV for every 100 minted. Cover is at our 25% editorial alert line.');
+  assert.equal(describe(0, 0.26, 0.25).thresholdNote, 'Over 90 days, burns retired 25 VVV for every 100 minted. Cover is at our own 25% alert line.');
   assert.match(describe(0.325, 0.325).trend, /32.5% of issuance in the last 30 days, unchanged from the preceding 30 days/);
   assert.match(describe(0.3253, 0.3252).trend, /slightly up from the preceding 30 days/);
-  assert.equal(describe(0, null, 0.24998).thresholdNote, 'Over 90 days, burns retired 25 VVV for every 100 minted. Cover is less than 0.1 percentage point below our 25% editorial alert line.');
+  assert.equal(describe(0, null, 0.24998).thresholdNote, 'Over 90 days, burns retired 25 VVV for every 100 minted. Cover is less than 0.1 percentage point below our own 25% alert line.');
   assert.equal(describe(0, null, 0.2495).level, '90-day cover was 25.0%, just below the 25% threshold.');
-  assert.match(describe(0, null).trend, /0.0%.*comparison is unavailable/);
+  assert.equal(describe(0, null).trend, 'Burns covered 0.0% of issuance in the last 30 days.');
+  assert.match(describe(0, null).detail, /comparison is unavailable/);
   assert.match(burnCoverContext().level, /needs 90 complete days/);
   assert.match(burnCoverContext().trend, /needs 30 complete days/);
   assert.equal(burnCoverContext().breakdown, '');
@@ -66,13 +68,13 @@ test('30-day trend uses adjacent windows and can read daily totals from an older
   const {windows, history} = snapshot().supply;
   const recent = windows[30];
   assert.equal(recent.previous.end, dayOffset(recent.start,-1));
-  assert.match(burnCoverContext(windows).trend, /amount burned rose 83.3% and issuance was unchanged. Effective supply grew by 2,010 VVV/);
+  assert.match(burnCoverContext(windows).detail, /amount burned rose 83.3% and issuance was unchanged. Effective supply grew by 2,010 VVV/);
   const older = {30:{...recent,previous:undefined}};
-  assert.equal(burnCoverContext(older, history).trend, burnCoverContext(windows).trend);
+  assert.equal(burnCoverContext(older, history).detail, burnCoverContext(windows).detail);
   const missing = history.filter(row => row.date !== recent.previous.start);
-  assert.doesNotMatch(burnCoverContext(older, missing).trend, /and issuance/);
+  assert.equal(burnCoverContext(older, missing).detail, '');
   const previous = {...recent.previous, burned:0, minted:4000};
-  assert.match(burnCoverContext({30:{...recent,previous,priorRatio:0}}).trend, /rose from zero to 990 VVV and issuance fell 25.0%/);
+  assert.match(burnCoverContext({30:{...recent,previous,priorRatio:0}}).detail, /rose from zero to 990 VVV and issuance fell 25.0%/);
 });
 
 test('burn program contributions to a change need reconciled, adjacent periods', () => {

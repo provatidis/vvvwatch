@@ -29,17 +29,24 @@ function readBoundary(blockNumber, day) {
   return checkpoints.get(blockNumber);
 }
 
-for (const [days, window] of Object.entries(snapshot.supply.windows)) {
-  assert(window, 'Missing ' + days + '-day window');
+const windows = Object.entries(snapshot.supply.windows).map(([days, window]) => [days + '-day window', window]);
+const preceding = snapshot.supply.windows[30]?.previous;
+if (preceding) {
+  assert.equal(preceding.end, dayOffset(snapshot.supply.windows[30].start, -1));
+  assert.equal(preceding.start, dayOffset(preceding.end, -29));
+  windows.push(['Preceding 30-day window', preceding]);
+}
+for (const [label, window] of windows) {
+  assert(window, 'Missing ' + label);
   const previousDay = dayOffset(window.start, -1);
   const [start, end] = await Promise.all([
     readBoundary(window.startBlock, previousDay), readBoundary(window.endBlock, window.end)
   ]);
   for (const key of ['minted', 'burned']) {
     const tokens = Number(end[key] - start[key]) / 1e18;
-    assert(Math.abs(tokens - window[key]) < 0.000001, days + '-day ' + key + ' disagrees with Base');
+    assert(Math.abs(tokens - window[key]) < 0.000001, label + ' ' + key + ' disagrees with Base');
   }
-  console.log(days + ' days verified against Base blocks ' + window.startBlock + ' and ' + window.endBlock);
+  console.log(label + ' verified against Base blocks ' + window.startBlock + ' and ' + window.endBlock);
 }
 
 if (process.argv.includes('--vesting')) {

@@ -21,7 +21,7 @@ if (remaining.size) throw Error('Missing snapshot placeholders: ' + [...remainin
 
 await mkdir(new URL('data/', dist), {recursive: true});
 await mkdir(new URL('lib/', dist), {recursive: true});
-for (const file of ['.nojekyll', 'CNAME', '404.html', 'styles.css', 'app.js', 'assets', 'lib/config.js', 'lib/holders.js', 'lib/burn-cover.js', 'lib/format.js', 'lib/overview.js']) {
+for (const file of ['.nojekyll', 'CNAME', '404.html', 'styles.css', 'app.js', 'assets', 'lib/config.js', 'lib/holders.js', 'lib/burn-cover.js', 'lib/buyback-recap.js', 'lib/burn-value.js', 'lib/format.js', 'lib/overview.js']) {
   await cp(new URL(file, root), new URL(file, dist), {recursive: true});
 }
 await writeFile(new URL('data/latest.json', dist), snapshotJSON);

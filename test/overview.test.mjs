@@ -32,9 +32,10 @@ test('the static build serves dated readings and escapes snapshot text in the in
   assert.match(html, /14 Feb 2026 UTC/);
   assert.match(html, /id="cover-value">37\.5%<\/strong>/);
   assert.match(html, /class="badge watch">Watch</);
+  assert.match(html, /href="\?days=90#ledger">View 90-day ledger/);
   assert.equal((html.match(/class="metric"/g) || []).length, 6);
   assert.match(html, /\$6\.51M</);
-  assert.match(html, /\$79\.2M\/year at this 30-day pace/);
+  assert.doesNotMatch(html, /\$79\.2M\/year/);
   assert.ok(html.includes('Test &lt;check&gt;'));
   assert.ok(html.includes('Cash $&amp; and &quot;$1&quot;.'));
   assert.doesNotMatch(html, /Loading daily snapshot|<!--snapshot:/);
@@ -53,4 +54,19 @@ test('partial snapshots keep missing figures and grades explicit', () => {
   assert.match(view['check-list'], /Check results are unavailable/);
   assert.match(view.asof, /older snapshot/);
   assert.doesNotMatch(view.overview, /NaN|undefined|\$0\/year/);
+});
+
+test('the overview quotes qualifying credit purchase value for matching, reconciled days', () => {
+  const end = Date.UTC(2026,10,24);
+  const rows = Array.from({length:30},(_,i)=>({date:new Date(end-(29-i)*86_400_000).toISOString().slice(0,10),
+    pro:1,proplus:0,max:0,credits:1,estimatedUsd:118}));
+  const window30 = {estimatedUsd:3540,annualizedUsd:43070,start:rows[0].date,end:rows.at(-1).date};
+  const note = (days, w=window30) => overviewFragments({lastDay:'2026-11-24',sales:{window30:w, days}}).overview;
+  assert.match(note(rows),/85% of this value came from API credit purchases/);
+  for (const invalid of [rows.slice(1),[rows[0],...rows.slice(0,-1)], [{...rows[0],credits:0},...rows.slice(1)]]) {
+    assert.doesNotMatch(note(invalid), /% of this value/);
+  }
+  assert.doesNotMatch(note(rows,{...window30,estimatedUsd:3539}), /% of this value/);
+  assert.doesNotMatch(note(rows,{...window30,estimatedUsd:0}), /% of this value/);
+  assert.doesNotMatch(note(rows), /annualized|\/year/i);
 });

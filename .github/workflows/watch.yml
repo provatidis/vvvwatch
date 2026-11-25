@@ -70,20 +70,26 @@ jobs:
         with:
           ref: gh-pages
           path: published
-      - name: Publish the static branch and request its Pages build
+      - name: Publish the static branch
         if: steps.pages.outputs.mode == 'legacy'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           rsync -a --delete --exclude=.git dist/ published/
           git -C published add -A
+          pushed=false
           if ! git -C published diff --cached --quiet; then
             git -C published config user.name 'github-actions[bot]'
             git -C published config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git -C published commit -m "Publish VVV Watch for $(date -u +%F)"
             git -C published push origin HEAD:gh-pages
+            pushed=true
           fi
-          gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" --silent
+          # A push to gh-pages starts its own Pages build. Without one, request a rebuild so an
+          # earlier failed deployment is retried. A GitHub API error here must not stop the alerts.
+          if [ "$pushed" = false ] && ! gh api --method POST "repos/$GITHUB_REPOSITORY/pages/builds" --silent; then
+            echo "::warning::GitHub did not accept the Pages rebuild request. The next run asks again."
+          fi
       - name: Deliver durable issue alerts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

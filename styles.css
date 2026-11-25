@@ -28,9 +28,10 @@
 /* Keep numeric comparisons legible at the same size as the surrounding text. */
 h1 { letter-spacing: 0; }
 .title-token { font-kerning: none; letter-spacing: .035em; }
-.cover-explanation { color: #ecf6ef; font-size: .9375rem; margin-bottom: 7px; }
+.cover-rating { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; }
+.cover-explanation { color: #bfd3ce; font-size: .8125rem; }
 .cover-context { margin-bottom: 13px; line-height: 1.45; }
-.cover-recent { color: #ecf6ef; font-size: .9375rem; font-weight: 500; }
+.cover-recent { color: #ecf6ef; font-size: 1rem; font-weight: 500; }
 .cover-breakdown { color: #bfd3ce; font-size: .8125rem; }
 .cover-recent:not(:empty) + .cover-breakdown:not(:empty) { margin-top: 4px; }
 .check .check-why { border-top: 1px solid var(--light-rule); padding-top: 9px; margin-top: 9px; font-size: .8125rem; }

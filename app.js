@@ -1,6 +1,9 @@
+import { buybackRecap } from './lib/buyback-recap.js';
+import { burnValueUsd } from './lib/burn-value.js';
+import { burnChangeDetail } from './lib/burn-cover.js';
 import { RULES, SALES } from './lib/config.js';
 import { diemTradeoff, holderSummary } from './lib/holders.js';
-import { DAY, BLANK, round, compact, pct, money, moneyShort, signed, divide, escape, date, blockLink, utcMidnight } from './lib/format.js';
+import { DAY, BLANK, round, compact, pct, money, moneyShort, signed, divide, escape, date, blockLink, utcMidnight, completeDays } from './lib/format.js';
 import { drawGauge, overviewFragments } from './lib/overview.js';
 
 const $ = id => document.getElementById(id);
@@ -23,7 +26,8 @@ function sourceLink(url, label) {
 }
 
 let snapshot;
-let selectedDays = new URLSearchParams(location.search).get('days') === '90' ? 90 : 30;
+const ledgerDaysFromUrl = () => new URLSearchParams(location.search).get('days') === '90' ? 90 : 30;
+let selectedDays = ledgerDaysFromUrl();
 
 function theme() {
   const toggle = $('theme');
@@ -126,13 +130,6 @@ function lineChart(rows, series, labelStart, labelEnd, description) {
   return chartFrame(scale,[labelStart,labelEnd],lines,description);
 }
 
-function completeDays(rows, lastDay, days) {
-  const end = utcMidnight(lastDay);
-  const first = end-(days-1)*DAY;
-  const period = (rows || []).filter(r => utcMidnight(r.date) >= first && utcMidnight(r.date) <= end).sort((a,b) => a.date.localeCompare(b.date));
-  return period.length === days && period.every((r,i) => utcMidnight(r.date) === first+i*DAY) ? period : [];
-}
-
 function attribution(window) {
   if (!window) return '';
   const mint = window.issuanceAttribution;
@@ -158,10 +155,11 @@ function attribution(window) {
 function renderLedger(s) {
   const d = selectedDays, win = s.supply?.windows?.[d];
   document.querySelectorAll('[data-ledger-days]').forEach(btn => btn.setAttribute('aria-pressed', String(Number(btn.dataset.ledgerDays) === d)));
+  const drivers = d === 30 ? burnChangeDetail(win) : '';
   const info = win ? `${date(win.start,false)} – ${date(win.end)} UTC` : 'Awaiting a complete window';
   $('ledger-summary').innerHTML = `<h3>${d}-day reconciliation</h3><p class="fine">${escape(info)}</p>${list([
     ['Minted', `${round(win?.minted)} VVV`], ['Retired', `${round(win?.burned)} VVV`], ['Net supply change', `${signed(win?.net)} VVV`,'total'], ['Burn cover', pct(win?.ratio)], ['Annualized net change', signed(win?.annualized,pct)]
-  ])}${attribution(win)}`;
+  ])}${drivers ? `<p class="fine attribution-note">${escape(drivers)}</p>` : ''}${attribution(win)}`;
   let mint = 0, burn = 0;
   const daily = completeDays(s.supply?.history,s.lastDay,d);
   const valid = daily.length && daily.every(r => Number.isFinite(r.minted) && Number.isFinite(r.burned));
@@ -173,23 +171,17 @@ function renderLedger(s) {
 }
 
 function renderBuybacks(s) {
-  const b = s.buybacks, cycles = [...(b?.cycles || [])].sort((a,c) => c.date.localeCompare(a.date));
+  const b = s.buybacks, cycles = [...(b?.cycles || [])].sort((a,c) => c.date.localeCompare(a.date) || c.block - a.block);
   if (!cycles.length) { $('buyback-panel').innerHTML = empty('Monthly Safe inventory is unavailable in this snapshot.'); return; }
   const c = cycles[0], prev = cycles[1];
-  const value = c.burnVerified ? c.valuation : null;
-  const priorValue = prev?.burnVerified ? prev.valuation : null;
-  const delta = (n, base) => Number.isFinite(n) && base > 0 ? n/base - 1 : null;
-  const changes = [
-    ['burn value',delta(value?.usd,priorValue?.usd)],
-    ['VVV retired',delta(c.burnedVvv,prev?.burnedVvv)],
-    ['USDC spent',c.verified && prev?.verified ? delta(c.spentUsdc,prev.spentUsdc) : null]
-  ].filter(([,ratio]) => Number.isFinite(ratio)).map(([name,ratio])=>`${name} ${signed(ratio,pct)}`);
-  const comparison = prev && changes.length ? `<p class="buyback-comparison">Since the ${date(prev.date,false)} cycle · ${changes.join(' · ')}</p>` : '';
+  const value = burnValueUsd(c) !== null ? c.valuation : null;
+  const recap = buybackRecap(c, prev);
+  const comparison = recap ? `<h4>What changed since the previous burn?</h4><p class="buyback-comparison">${escape(recap)}</p>` : '';
   const valuationSource = value ? `<p class="fine">The estimate prices retired VVV at ${money(value.priceUsd,2)} per token at Base block ${blockLink(value.block)}. It combines the <a href="https://basescan.org/address/${escape(value.pool)}">Aerodrome VVV/WETH price</a> and <a href="https://basescan.org/address/${escape(value.oracle)}">Chainlink ETH/USD price</a>.</p>` : '<p class="fine">A burn-time market price is unavailable for this cycle.</p>';
-  const rows = cycles.map(cycle => [date(cycle.date),round(cycle.openingVvv,1),round(cycle.boughtVvv,1),signed(cycle.otherVvv,v=>round(v,1)),round(cycle.burnedVvv,1),money(cycle.burnVerified ? cycle.valuation?.usd : null),round(cycle.closingVvv,1),money(cycle.spentUsdc),cycle.verified ? 'Verified' : 'Partial',txLink(cycle.tx,'View ↗')]);
+  const rows = cycles.map(cycle => [date(cycle.date),round(cycle.openingVvv,1),round(cycle.boughtVvv,1),signed(cycle.otherVvv,v=>round(v,1)),round(cycle.burnedVvv,1),money(burnValueUsd(cycle)),round(cycle.closingVvv,1),money(cycle.spentUsdc),cycle.verified ? 'Verified' : 'Partial',txLink(cycle.tx,'View ↗')]);
   $('buyback-panel').innerHTML = `<div class="subhead"><h3>Latest burn · ${date(c.date)}</h3><span class="fine">${escape(stamp(s.sources?.buybacks?.asOf || b.asOf)+stale(s.sources?.buybacks))}</span></div><div class="subgrid">${[
     datum('Estimated burn value',moneyShort(value?.usd),'USD at the burn block'), datum('VVV retired',round(c.burnedVvv),'Permanently removed'), datum('Spent during cycle',moneyShort(c.spentUsdc),c.verified ? 'USDC paid for VVV' : 'Attributed USDC purchases'), datum('Closing inventory',round(c.closingVvv),'VVV left in the Safe')
-  ].join('')}</div>${comparison}${valuationSource}<p class="fine">${Number.isFinite(c.openingVvv) && Number.isFinite(c.boughtVvv) ? `The Safe carried ${round(c.openingVvv)} VVV into this cycle and bought ${round(c.boughtVvv)} VVV.` : 'Earlier Safe balances are unavailable for this cycle.'} ${txLink(c.tx,'Burn transaction ↗')}</p>${details('Show cycle ledger',table(['Burn date','Opening VVV','Bought VVV','Other net VVV','Burned VVV','Est. burn value','Closing VVV','USDC spent','Spending evidence','Evidence'],rows))}`;
+  ].join('')}</div>${comparison}${valuationSource}<p class="fine">${Number.isFinite(c.openingVvv) && Number.isFinite(c.boughtVvv) ? (recap ? `The Safe bought ${round(c.boughtVvv)} VVV during this cycle.` : `The Safe carried ${round(c.openingVvv)} VVV into this cycle and bought ${round(c.boughtVvv)} VVV.`) : 'Earlier Safe balances are unavailable for this cycle.'} ${txLink(c.tx,'Burn transaction ↗')}</p>${details('Show cycle ledger',table(['Burn date','Opening VVV','Bought VVV','Other net VVV','Burned VVV','Est. burn value','Closing VVV','USDC spent','Spending evidence','Evidence'],rows))}`;
 }
 
 function referencePurchases(reference, verified) {
@@ -375,7 +367,7 @@ function renderHolders(s) {
 <p class="fine">Simple yearly rates at today’s emission rate and staked supply. More staking spreads the same emissions thinner.</p></article>`
     : `<article class="panel"><h3>Staking against dilution</h3>${empty('Pending: staking settings or a complete 30-day window are missing.')}</article>`;
   const worth = `<article class="panel"><div class="subhead"><h3>What holders get</h3><span class="fine">${escape(windowNotes.join(' · '))}</span></div>
-<p class="fine">VVV has no claim on Venice’s revenue. Holders get burns, paid from sales and a monthly buyback.</p>
+<p class="fine">VVV has no claim on Venice’s revenue. Holders get burns, paid from sales and a monthly buyback. <a href="https://venice.ai/lp/vvv">Staking at least 100 VVV currently unlocks Venice Pro</a>.</p>
 <div class="subgrid">${[
     datum('Burned a year', pct(v.burnRate,2), 'Share of effective supply at the 30-day pace'),
     datum('Minted a year', pct(v.emitRate,2), 'Share of effective supply at the 30-day pace'),
@@ -496,6 +488,7 @@ function render(s) {
 }
 
 async function load() {
+  const opensLedger = location.hash === '#ledger';
   $('error').hidden=true;
   try {
     const response=await fetch('./data/latest.json',{cache:'no-cache'});
@@ -504,6 +497,8 @@ async function load() {
     if (s.schemaVersion!==1 || !Number.isFinite(utcMidnight(s.lastDay))) throw new Error('Unsupported snapshot');
     snapshot=s;
     render(snapshot);
+    // The holder panels inserted above the ledger can move it past the browser's initial anchor.
+    if (opensLedger && location.hash === '#ledger') $('ledger').scrollIntoView({behavior:'instant'});
   } catch {
     const savedOverview = $('overview').childElementCount > 0;
     if (!savedOverview) {
@@ -521,8 +516,18 @@ async function load() {
 }
 
 theme();
+window.addEventListener('popstate', () => {
+  const days = ledgerDaysFromUrl();
+  if (days === selectedDays) return;
+  selectedDays = days;
+  if (snapshot) renderLedger(snapshot);
+});
 document.querySelectorAll('[data-ledger-days]').forEach(button=>button.addEventListener('click',()=>{
   selectedDays=Number(button.dataset.ledgerDays);
+  const url = new URL(location.href);
+  if (selectedDays === 90) url.searchParams.set('days', '90');
+  else url.searchParams.delete('days');
+  history.replaceState(history.state, '', url);
   if (snapshot) renderLedger(snapshot);
 }));
 load();

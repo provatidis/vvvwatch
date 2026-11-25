@@ -20,7 +20,8 @@ test('the static build serves dated readings and escapes snapshot text in the in
   const snapshot = {
     schemaVersion: 1, lastDay: '2026-02-14', evidence: {endBlock: 123456},
     supply: {history: [{date:'2026-02-14'}], effective: 1000, staked: 400,
-      windows: {90: {ratio:0.375, net:75}, 30: {ratio:0.35, priorRatio:0.25}}},
+      windows: {90: {ratio:0.375, net:75}, 30: {start:'2026-01-16',end:'2026-02-14', ratio:0.35, priorRatio:0.25, minted:100, burned:35,
+        previous:{start:'2025-12-17',end:'2026-01-15', minted:100, burned:25}}}},
     sales: {window30:{estimatedUsd:6512345, annualizedUsd:79233531}},
     checks: [{id:'cover', state:'watch', title:'Test <check>', text:'Cash $& and "$1".'}]
   };
@@ -31,7 +32,14 @@ test('the static build serves dated readings and escapes snapshot text in the in
   const html = await readFile(join(dir, 'dist/index.html'), 'utf8');
   assert.match(html, /14 Feb 2026 UTC/);
   assert.match(html, /id="cover-value">37\.5%<\/strong>/);
-  assert.match(html, /class="badge watch">Watch</);
+  const card = html.slice(html.indexOf('id="cover-value"'), html.indexOf('id="overview"'));
+  const paragraphs = [...card.matchAll(/id="(cover-grade|cover-note|cover-recent|cover-drivers|cover-breakdown)"/g)];
+  assert.deepEqual(paragraphs.map(match => match[1]), ['cover-grade','cover-note','cover-recent','cover-drivers','cover-breakdown']);
+  assert.match(card, /class="badge watch">Watch</);
+  assert.match(card, /id="cover-note">Over 90 days/);
+  assert.match(card, /id="cover-recent">Burns covered 35\.0%[^<]*preceding 30 days\.<\/p>/);
+  assert.match(card, /id="cover-drivers">The amount burned rose 40\.0%/);
+  assert.match(html, /Break-even <b>100%<\/b>/);
   assert.match(html, /href="\?days=90#ledger">View 90-day ledger/);
   assert.equal((html.match(/class="metric"/g) || []).length, 6);
   assert.match(html, /\$6\.51M</);
@@ -50,6 +58,7 @@ test('the static build serves dated readings and escapes snapshot text in the in
 test('partial snapshots keep missing figures and grades explicit', () => {
   const view = overviewFragments({lastDay:'2026-02-14', checks:[]}, Date.UTC(2026, 1, 20));
   assert.equal(view['cover-value'], '—');
+  assert.equal(view['cover-drivers'], '');
   assert.match(view['cover-grade'], /class="badge pending">Pending</);
   assert.match(view['check-list'], /Check results are unavailable/);
   assert.match(view.asof, /older snapshot/);

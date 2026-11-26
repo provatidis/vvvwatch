@@ -32,6 +32,12 @@ test('the static build serves dated readings and escapes snapshot text in the in
   const html = await readFile(join(dir, 'dist/index.html'), 'utf8');
   assert.match(html, /14 Feb 2026 UTC/);
   assert.match(html, /id="cover-value">37\.5%<\/strong>/);
+  assert.doesNotMatch(html, /<!--\/?snapshot/);
+  assert.match(html, /<summary>How the checks are graded<\/summary>/);
+  assert.match(html, /id="rules-panel"><p class="empty">Rules and administrative controls are unavailable for this snapshot\.<\/p><\/div>/);
+  assert.match(html, /id="ledger-summary"[^>]*><h3>30-day reconciliation<\/h3>/);
+  assert.match(html, /id="holders-panel"><article class="panel">/);
+  assert.match(html, /id="calc-out" aria-live="polite"><p class="empty">DIEM supply or the mint curve is unavailable\.<\/p><\/div>/);
   const card = html.slice(html.indexOf('id="cover-value"'), html.indexOf('id="overview"'));
   const paragraphs = [...card.matchAll(/id="(cover-grade|cover-note|cover-recent|cover-drivers|cover-breakdown)"/g)];
   assert.deepEqual(paragraphs.map(match => match[1]), ['cover-grade','cover-note','cover-recent','cover-drivers','cover-breakdown']);
@@ -71,7 +77,7 @@ test('the overview quotes qualifying credit purchase value for matching, reconci
     pro:1,proplus:0,max:0,credits:1,estimatedUsd:118}));
   const window30 = {estimatedUsd:3540,annualizedUsd:43070,start:rows[0].date,end:rows.at(-1).date};
   const note = (days, w=window30) => overviewFragments({lastDay:'2026-11-24',sales:{window30:w, days}}).overview;
-  assert.match(note(rows),/85% of this value came from API credit purchases/);
+  assert.match(note(rows),/At list prices · 85% from API credit purchases/);
   for (const invalid of [rows.slice(1),[rows[0],...rows.slice(0,-1)], [{...rows[0],credits:0},...rows.slice(1)]]) {
     assert.doesNotMatch(note(invalid), /% of this value/);
   }

@@ -139,11 +139,20 @@ test('missing inputs give blanks, never zero or NaN', () => {
   assert.equal(noPrices.creditsNet, null);
 });
 
-test('the build copies every module the page imports', async () => {
-  const [app, build] = await Promise.all([readFile(new URL('../app.js', import.meta.url), 'utf8'), readFile(new URL('../scripts/build.mjs', import.meta.url), 'utf8')]);
-  const imported = [...app.matchAll(/from '\.\/(lib\/[\w-]+\.js)'/g)].map(m => m[1]);
-  assert.ok(imported.includes('lib/holders.js'));
-  for (const file of imported) assert.ok(build.includes(`'${file}'`), `${file} is not copied by scripts/build.mjs`);
+test('the build copies every module the page imports, including modules those modules import', async () => {
+  const read = path => readFile(new URL('../' + path, import.meta.url), 'utf8');
+  const build = await read('scripts/build.mjs');
+  const seen = new Set(), queue = ['app.js'];
+  while (queue.length) {
+    const file = queue.shift();
+    const base = file.includes('/') ? file.slice(0, file.lastIndexOf('/') + 1) : '';
+    for (const [, path] of (await read(file)).matchAll(/from '\.\/([\w./-]+\.js)'/g)) {
+      const resolved = base + path;
+      if (!seen.has(resolved)) { seen.add(resolved); queue.push(resolved); }
+    }
+  }
+  assert.ok(seen.has('lib/holders.js') && seen.has('lib/sections.js') && seen.has('lib/buyback-recap.js'));
+  for (const file of seen) assert.ok(build.includes(`'${file}'`), `${file} is not copied by scripts/build.mjs`);
 });
 
 test('reported circulating value requires a recent official count and a fresh price', () => {

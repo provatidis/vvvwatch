@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { contiguous, dayOffset, grade, makeSnapshot, supplyWindow } from '../lib/metrics.js';
+import { contiguous, dayOffset, grade, makeSnapshot, rateStepText, rateSteps, supplyWindow } from '../lib/metrics.js';
 import { planAlerts } from '../lib/alerts.js';
 import { burnChangeDetail, burnCoverContext } from '../lib/burn-cover.js';
 import { summarizedUsage } from '../scripts/context.mjs';
@@ -234,4 +234,27 @@ test('purchase pace and burn shares use the same complete window and require att
   buybacks.cycles=[{...cycle,valuation:null}];
   assert.equal(window().totalBurnShare,null);
   assert.equal(window().programmaticBurnShare,0.05);
+});
+
+test('the burn cover check lists every issuance rate change inside the 90-day window', () => {
+  const day = (date, rate) => ({date, parameters: {emissionRatePerYear: rate}});
+  const series = [day('2026-08-31', 3_000_000), day('2026-09-01', 2_500_000), day('2026-09-02', 2_500_000),
+    day('2026-10-01', 2_000_000), day('2026-10-02', 2_000_000.0000004)];
+  assert.deepEqual(rateSteps(series), [{date:'2026-09-01', from:3_000_000, to:2_500_000}, {date:'2026-10-01', from:2_500_000, to:2_000_000}]);
+  assert.equal(rateStepText(rateSteps(series)),
+    ' During the 90-day window, the scheduled annual issuance rate was cut from 3,000,000 to 2,500,000 VVV on 1 Sept 2026 and to 2,000,000 VVV on 1 Oct 2026.');
+  assert.equal(rateStepText([{date:'2026-10-01', from:2_000_000, to:2_500_000}]),
+    ' During the 90-day window, the scheduled annual issuance rate was raised from 2,000,000 to 2,500,000 VVV on 1 Oct 2026.');
+  assert.match(rateStepText([{date:'2026-09-01', from:3e6, to:2e6}, {date:'2026-10-01', from:2e6, to:2.5e6}, {date:'2026-11-01', from:2.5e6, to:1e6}]),
+    /rate changed from 3,000,000 to 2,000,000 VVV on 1 Sept 2026, to 2,500,000 VVV on 1 Oct 2026 and to 1,000,000 VVV on 1 Nov 2026\.$/);
+  assert.equal(rateStepText([]), '');
+  assert.deepEqual(rateSteps([day('2026-09-01', 3e6), {date:'2026-09-02'}, day('2026-09-03', 2e6)]), []);
+});
+
+test('the snapshot names a rate change on the first day of the 90-day window', () => {
+  const series = rows.map((row, i) => ({...row, parameters: {...row.parameters, emissionRatePerYear: i < 1 ? 3_000_000 : i < 50 ? 2_500_000 : 2_000_000}}));
+  const s = makeSnapshot({days: series, lastDay: end, rules: {}}, {sales: {days: []}, buybacks: {cycles: [], asOf: end}, lastDay: end}, {}, {now});
+  const text = s.checks.find(check => check.id === 'cover').text;
+  assert.match(text, new RegExp(`cut from 3,000,000 to 2,500,000 VVV on .+ and to 2,000,000 VVV on .+\\.$`));
+  assert.doesNotMatch(text, /went from/);
 });

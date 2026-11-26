@@ -113,3 +113,12 @@ h1 { letter-spacing: 0; }
     --rule: #364849;
   }
 }
+/* How the checks are graded */
+.grading{margin-top:14px}
+.grading>.fine{max-width:820px;margin-bottom:10px}
+.grading>.fine:last-child{margin:10px 0 0}
+.grading-wrap{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:2px 16px}
+.grading-table{min-width:760px}
+.grading-table tbody tr:last-child th{border:0}
+.grading-table th,.grading-table td{text-align:left}
+.grading-table tbody th{color:var(--ink);font-weight:600}

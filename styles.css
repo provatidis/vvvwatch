@@ -127,3 +127,19 @@ h1 { letter-spacing: 0; }
 #ledger-90 { display: none; }
 #ledger-90:target, #ledger-windows[data-days="90"]:not(:has(> #ledger:target)) > #ledger-90 { display: block; }
 #ledger-90:target + #ledger, #ledger-windows[data-days="90"] > #ledger:not(:target) { display: none; }
+/* Tracked wallets: a table on wide screens, labelled cards on phones */
+.wallet-table{min-width:880px}
+.wallet-table th:nth-child(-n+3),.wallet-table td:nth-child(-n+3){text-align:left}
+.wallet-name{font-weight:600;color:var(--ink)}
+.wallet-check{display:inline-block;margin-left:4px;padding:1px 5px;border:1px solid var(--rule);border-radius:4px;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:.04em;white-space:nowrap;vertical-align:1px}
+@media(max-width:680px){
+  .wallet-table{min-width:0;display:block}
+  .wallet-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .wallet-table tbody,.wallet-table td{display:block}
+  .wallet-table tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;padding:14px 0;border-bottom:1px solid var(--light-rule)}
+  .wallet-table tbody tr:last-child{border-bottom:0}
+  .wallet-table td,.wallet-table td:first-child,.wallet-table td:last-child{padding:0;border:0;text-align:left}
+  .wallet-table td:first-child,.wallet-table td:nth-child(3){grid-column:1/-1}
+  .wallet-table td:nth-child(3){order:1}
+  .wallet-table td:not(:first-child)::before{content:attr(data-label);display:block;color:var(--muted);font-size:12px;margin-bottom:1px}
+}

@@ -1,13 +1,26 @@
 import { holderSummary } from './lib/holders.js';
 import { money, utcMidnight } from './lib/format.js';
 import { drawGauge, overviewFragments } from './lib/overview.js';
-import { calcResult, empty, ledgerFragments, sectionFragments } from './lib/sections.js';
+import { calcResult, empty, ledgerWindow, sectionFragments } from './lib/sections.js';
 
 const $ = id => document.getElementById(id);
 
-let snapshot;
-const ledgerDaysFromUrl = () => new URLSearchParams(location.search).get('days') === '90' ? 90 : 30;
-let selectedDays = ledgerDaysFromUrl();
+// Preserve old shared links. New links select a built-in ledger using a plain fragment.
+function selectLedgerFromUrl(initial = false) {
+  const url = new URL(location.href);
+  const legacy = url.searchParams.get('days');
+  const windows = $('ledger-windows');
+  if (initial && legacy === '90') {
+    windows.dataset.days = '90';
+    if (url.hash === '#ledger') url.hash = '#ledger-90';
+  }
+  if (!['#ledger', '#ledger-90'].includes(url.hash)) return;
+  windows.dataset.days = url.hash === '#ledger-90' ? '90' : '30';
+  if (legacy === '30' || legacy === '90') {
+    url.searchParams.delete('days');
+    history.replaceState(history.state, '', url);
+  }
+}
 
 function theme() {
   const toggle = $('theme');
@@ -39,11 +52,6 @@ function renderOverview(s) {
   const fragments = overviewFragments(s);
   fill(fragments);
   $('cover-context').hidden = !fragments['cover-note'] && !fragments['cover-recent'] && !fragments['cover-drivers'] && !fragments['cover-breakdown'];
-}
-
-function renderLedger(s) {
-  document.querySelectorAll('[data-ledger-days]').forEach(btn => btn.setAttribute('aria-pressed', String(Number(btn.dataset.ledgerDays) === selectedDays)));
-  fill(ledgerFragments(s, selectedDays));
 }
 
 function renderCalc(s, h, edited) {
@@ -87,31 +95,35 @@ function wireCalculator(s) {
   form.addEventListener('submit', event => event.preventDefault());
   const edited = new Set();
   form.addEventListener('input', event => {
+    // The label describes the saved example, so it goes once the reader changes an input.
+    $('calc-example').hidden = true;
     if (event.target.matches('input[type=number]')) edited.add(event.target);
     renderCalc(s, h, edited);
   });
+  // The form is in the saved page with its inputs disabled, so enabling them moves nothing.
   renderCalc(s, h, edited);
+  $('calc-controls').disabled = false;
 }
 
 function render(s) {
   renderOverview(s);
-  fill(sectionFragments(s, selectedDays));
-  renderLedger(s);
+  fill({...sectionFragments(s), ledger: ledgerWindow(s, 30), 'ledger-90': ledgerWindow(s, 90)});
   wireCalculator(s);
 }
 
 async function load() {
-  const opensLedger = location.hash === '#ledger';
+  const initialHash = location.hash;
   $('error').hidden=true;
   try {
     const response=await fetch('./data/latest.json',{cache:'no-cache'});
     if (!response.ok) throw new Error(`Snapshot HTTP ${response.status}`);
     const s=await response.json();
     if (s.schemaVersion!==1 || !Number.isFinite(utcMidnight(s.lastDay))) throw new Error('Unsupported snapshot');
-    snapshot=s;
-    render(snapshot);
+    render(s);
     // The holder panels above the ledger can move it past the browser's initial anchor.
-    if (opensLedger && location.hash === '#ledger') $('ledger').scrollIntoView({behavior:'instant'});
+    if (initialHash === location.hash && ['#ledger', '#ledger-90'].includes(initialHash)) {
+      $(initialHash.slice(1)).scrollIntoView({behavior:'instant'});
+    }
   } catch {
     const saved = $('overview').childElementCount > 0;
     if (!saved) {
@@ -119,28 +131,16 @@ async function load() {
       $('cover-note').textContent='Awaiting a verified snapshot';
       $('gauge').innerHTML=drawGauge(null);
       $('check-list').innerHTML=empty('Data is unavailable.');
-      for (const id of ['holders-panel','ledger-summary','ledger-trend','buyback-panel','sales-panel','diem-panel','treasury-panel','rules-panel']) $(id).innerHTML=empty('Data is unavailable.');
+      for (const id of ['holders-panel','ledger','ledger-90','buyback-panel','sales-panel','diem-panel','treasury-panel','rules-panel']) $(id).innerHTML=empty('Data is unavailable.');
     }
     $('error').hidden=false;
-    const message = saved ? 'Showing the saved snapshot. The latest data could not load, so the calculator and ledger window are inactive.' : 'The dashboard could not load its daily snapshot.';
+    const message = saved ? 'Showing the saved snapshot. The latest data could not load.' : 'The dashboard could not load its daily snapshot.';
     $('error').innerHTML=message+' <button type="button" id="retry">Retry</button> <a href="./data/latest.json">Open snapshot JSON ↗</a>';
     $('retry').addEventListener('click',load,{once:true});
   }
 }
 
 theme();
-window.addEventListener('popstate', () => {
-  const days = ledgerDaysFromUrl();
-  if (days === selectedDays) return;
-  selectedDays = days;
-  if (snapshot) renderLedger(snapshot);
-});
-document.querySelectorAll('[data-ledger-days]').forEach(button=>button.addEventListener('click',()=>{
-  selectedDays=Number(button.dataset.ledgerDays);
-  const url = new URL(location.href);
-  if (selectedDays === 90) url.searchParams.set('days', '90');
-  else url.searchParams.delete('days');
-  history.replaceState(history.state, '', url);
-  if (snapshot) renderLedger(snapshot);
-}));
+selectLedgerFromUrl(true);
+window.addEventListener('hashchange', () => selectLedgerFromUrl());
 load();

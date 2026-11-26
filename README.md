@@ -14,7 +14,7 @@ A daily, independently reproducible ledger of Venice’s VVV issuance, buybacks 
 
 The thresholds in [lib/config.js](lib/config.js) are editorial choices. Burn cover below 25% is graded Alert, 25% through just below 100% is Watch, and 100% or above is Healthy. An Alert describes the observed window. When an input is missing, a grade is pending or stale. The dashboard lists every check’s thresholds under “How the checks are graded”, generated from the same configuration.
 
-The build writes every section into `index.html` from the daily snapshot, so readers, crawlers and tools that don’t run JavaScript see the same figures. The browser then fetches the snapshot to run the DIEM calculator and switch the ledger window.
+The build writes every section into `index.html` from the daily snapshot, so readers, crawlers and tools that don’t run JavaScript see the same figures. The 30-day and 90-day ledger links work directly in the saved page. The browser fetches the snapshot before enabling the DIEM calculator.
 
 The holder valuation compares the token value on Venice’s reported circulating supply and on effective supply with estimated purchases at the latest 30-day pace. Each uses the same VVV spot quote. Venice’s API returns a count, so the snapshot records when it was read. The separate figure excluding Venice’s tracked Safes uses their verified balances at the supply close. [Venice circulating supply](https://api.venice.ai/api/v1/vvv/circulatingsupply)
 
@@ -42,7 +42,7 @@ node scripts/build.mjs          # package the static site into dist/
 python3 -m http.server 8765 --directory dist
 ```
 
-Run `node scripts/snapshot.mjs --compose-only` to reuse the archived protocol and purchase history while reading wallet balances, signer sets, market quotes and usage context. The two history collectors can be run independently. `BASE_RPC_URL` can supply an additional Base archive endpoint. For a full staking-proxy emission-event scan from deployment, run `node scripts/verify.mjs --scan-rules` with a provider that serves historical logs. GitHub issue delivery runs separately after the evidence commit.
+Run `node scripts/snapshot.mjs --compose-only` to reuse the archived protocol and purchase history while reading wallet balances, signer sets, market quotes and usage context. The two history collectors can be run independently. `BASE_RPC_URL` can supply an additional Base archive endpoint. For a full staking-proxy emission-event scan from deployment, run `node scripts/verify.mjs --scan-rules` with a provider that serves historical logs. GitHub issue delivery runs separately after the evidence commit. The publication check compares the public homepage and snapshot with the exact files built for the release. In branch publishing mode it requests one rebuild if either file still differs after the propagation period.
 
 ### Sources
 

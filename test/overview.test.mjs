@@ -36,7 +36,12 @@ test('the static build serves dated readings and escapes snapshot text in the in
   assert.match(html, /<summary>How the checks are graded<\/summary>/);
   assert.match(html, /id="rules-panel"><p class="empty">Rules and administrative controls are unavailable for this snapshot\.<\/p><\/div>/);
   assert.match(html, /id="ledger-summary"[^>]*><h3>30-day reconciliation<\/h3>/);
+  assert.match(html, /id="ledger-summary-90"><h3>90-day reconciliation<\/h3>[\s\S]*?<dt>Burn cover<\/dt><dd>37\.5%/);
+  assert.match(html, /id="ledger-90"[^>]*>[\s\S]*?<a href="#ledger-90" aria-current="location">90 days<\/a>/);
   assert.match(html, /id="holders-panel"><article class="panel">/);
+  assert.match(html, /id="calc-example">Example for a first mint of 1 DIEM held for one year, using \$1 of credit per day/);
+  assert.match(html, /<form id="diem-calc"[^>]* hidden>/);
+  assert.match(html, /<fieldset [^>]*id="calc-controls"[^>]* disabled>/);
   assert.match(html, /id="calc-out" aria-live="polite"><p class="empty">DIEM supply or the mint curve is unavailable\.<\/p><\/div>/);
   const card = html.slice(html.indexOf('id="cover-value"'), html.indexOf('id="overview"'));
   const paragraphs = [...card.matchAll(/id="(cover-grade|cover-note|cover-recent|cover-drivers|cover-breakdown)"/g)];
@@ -46,7 +51,7 @@ test('the static build serves dated readings and escapes snapshot text in the in
   assert.match(card, /id="cover-recent">Burns covered 35\.0%[^<]*preceding 30 days\.<\/p>/);
   assert.match(card, /id="cover-drivers">The amount burned rose 40\.0%/);
   assert.match(html, /Break-even <b>100%<\/b>/);
-  assert.match(html, /href="\?days=90#ledger">View 90-day ledger/);
+  assert.match(html, /href="#ledger-90">View 90-day ledger/);
   assert.equal((html.match(/class="metric"/g) || []).length, 6);
   assert.match(html, /\$6\.51M</);
   assert.doesNotMatch(html, /\$79\.2M\/year/);

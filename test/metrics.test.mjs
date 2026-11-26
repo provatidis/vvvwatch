@@ -132,6 +132,26 @@ test('alerts are seeded silently, survive stale days, deduplicate and close on r
   assert.deepEqual(planAlerts(recovered, data), recovered);
 });
 
+test('an existing staking-exits watch gains the automatic closure explanation on its next fresh reading', () => {
+  const data = snapshot();
+  const check = data.checks.find(c => c.id === 'exits');
+  const prior = planAlerts(null, data);
+  const id = 'check-exits-2026-11-20';
+  prior.states.exits = {state:'watch', incident:id};
+  prior.issues[id] = {title:'Staking exits · Watch', body:'Earlier reading.', open:true};
+  check.state = 'stale';
+  assert.deepEqual(planAlerts(prior, data).issues, prior.issues);
+
+  check.state = 'watch';
+  check.text = '2,600 VVV entered cooldown in seven days, equal to 2.6% of ending staked supply.';
+  const next = planAlerts(prior, data);
+  assert.deepEqual(Object.keys(next.issues), [id]);
+  assert.equal(next.issues[id].open, true);
+  assert.ok(next.issues[id].body.startsWith(check.text));
+  assert.match(next.issues[id].body, /bot closes this issue.*at or below 1\.5% of ending staked supply/);
+  assert.deepEqual(planAlerts(next, data), next);
+});
+
 test('rule changes after a source outage are delivered once, including same-day reversals', () => {
   const data = snapshot();
   let journal = planAlerts(null, data);

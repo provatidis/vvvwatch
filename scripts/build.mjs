@@ -2,7 +2,7 @@ import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dataFile } from './files.mjs';
 import { overviewFragments } from '../lib/overview.js';
 import { gradingTable } from '../lib/grading.js';
-import { sectionFragments } from '../lib/sections.js';
+import { ledgerWindow, sectionFragments } from '../lib/sections.js';
 
 const root = new URL('../', import.meta.url);
 const dist = new URL('dist/', root);
@@ -13,7 +13,7 @@ if (snapshot.schemaVersion !== 1 || !Number.isFinite(Date.parse(snapshot.lastDay
 }
 
 const template = await readFile(new URL('index.html', root), 'utf8');
-const sectionIds = ['holders-panel', 'holders-source', 'ledger-summary', 'ledger-trend', 'ledger-source',
+const sectionIds = ['holders-panel', 'holders-source',
   'buyback-panel', 'sales-panel', 'diem-panel', 'treasury-panel', 'rules-panel'];
 let sections;
 try {
@@ -23,7 +23,8 @@ try {
   console.warn('::warning::Static sections were left for the browser: ' + error.message);
   sections = Object.fromEntries(sectionIds.map(id => [id, '']));
 }
-const fragments = {...overviewFragments(snapshot), 'check-grading': gradingTable(), ...sections};
+const fragments = {...overviewFragments(snapshot), 'check-grading': gradingTable(),
+  ledger: ledgerWindow(snapshot, 30), 'ledger-90': ledgerWindow(snapshot, 90), ...sections};
 const remaining = new Set(Object.keys(fragments));
 const html = template.replace(/<!--snapshot:([\w-]+)-->[\s\S]*?<!--\/snapshot-->/g, (_, id) => {
   if (!remaining.delete(id)) throw Error('Unexpected or repeated snapshot placeholder: ' + id);

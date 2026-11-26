@@ -148,7 +148,7 @@ test('an existing staking-exits watch gains the automatic closure explanation on
   assert.deepEqual(Object.keys(next.issues), [id]);
   assert.equal(next.issues[id].open, true);
   assert.ok(next.issues[id].body.startsWith(check.text));
-  assert.match(next.issues[id].body, /bot closes this issue.*at or below 1\.5% of ending staked supply/);
+  assert.match(next.issues[id].body, /bot closes this issue when a fresh reading shows VVV entering cooldown over seven days at 1\.5% or less of ending staked supply\./);
   assert.deepEqual(planAlerts(next, data), next);
 });
 

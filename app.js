@@ -95,14 +95,14 @@ function wireCalculator(s) {
   form.addEventListener('submit', event => event.preventDefault());
   const edited = new Set();
   form.addEventListener('input', event => {
+    // The label describes the saved example, so it goes once the reader changes an input.
+    $('calc-example').hidden = true;
     if (event.target.matches('input[type=number]')) edited.add(event.target);
     renderCalc(s, h, edited);
   });
-  // Keep the saved example in view until the calculator can respond to edits.
+  // The form is in the saved page with its inputs disabled, so enabling them moves nothing.
   renderCalc(s, h, edited);
   $('calc-controls').disabled = false;
-  form.hidden = false;
-  $('calc-example').hidden = true;
 }
 
 function render(s) {

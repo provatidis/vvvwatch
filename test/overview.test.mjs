@@ -40,7 +40,9 @@ test('the static build serves dated readings and escapes snapshot text in the in
   assert.match(html, /id="ledger-90"[^>]*>[\s\S]*?<a href="#ledger-90" aria-current="location">90 days<\/a>/);
   assert.match(html, /id="holders-panel"><article class="panel">/);
   assert.match(html, /id="calc-example">Example for a first mint of 1 DIEM held for one year, using \$1 of credit per day/);
-  assert.match(html, /<form id="diem-calc"[^>]* hidden>/);
+  // Visible but disabled until the snapshot loads, so enabling it doesn't shift the page; hidden without JavaScript.
+  assert.match(html, /<form id="diem-calc" novalidate>\s*<fieldset class="calc" id="calc-controls"[^>]* disabled>/);
+  assert.match(html, /<noscript><style>#diem-calc\{display:none\}<\/style><\/noscript>\s*<\/head>/);
   assert.match(html, /<fieldset [^>]*id="calc-controls"[^>]* disabled>/);
   assert.match(html, /id="calc-out" aria-live="polite"><p class="empty">DIEM supply or the mint curve is unavailable\.<\/p><\/div>/);
   const card = html.slice(html.indexOf('id="cover-value"'), html.indexOf('id="overview"'));

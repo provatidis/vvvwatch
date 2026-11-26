@@ -46,7 +46,7 @@
   "issues": {
     "check-exits-2026-11-23": {
       "title": "Staking exits · Watch",
-      "body": "861,939 VVV entered cooldown in seven days, equal to 2.6% of ending staked supply.\n\nCompleted UTC day: 2026-11-25.",
+      "body": "861,939 VVV entered cooldown in seven days, equal to 2.6% of ending staked supply.\n\nCompleted UTC day: 2026-11-25.\n\nThe bot closes this issue when a fresh reading shows VVV entering cooldown over seven days at 1.5% or less of ending staked supply.",
       "open": true
     }
   }

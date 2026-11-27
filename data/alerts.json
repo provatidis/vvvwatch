@@ -30,7 +30,8 @@
       "observations": {
         "2026-11-23": false,
         "2026-11-24": false,
-        "2026-11-25": false
+        "2026-11-25": false,
+        "2026-11-26": false
       }
     },
     "trackedSafes": {
@@ -39,14 +40,14 @@
     }
   },
   "cursors": {
-    "monthly": "2026-11-25",
-    "rules": "2026-11-25",
+    "monthly": "2026-11-26",
+    "rules": "2026-11-26",
     "evidenceFrom": "2026-11-22"
   },
   "issues": {
     "check-exits-2026-11-23": {
       "title": "Staking exits · Watch",
-      "body": "861,939 VVV entered cooldown in seven days, equal to 2.6% of ending staked supply.\n\nCompleted UTC day: 2026-11-25.\n\nThe bot closes this issue when a fresh reading shows VVV entering cooldown over seven days at 1.5% or less of ending staked supply.",
+      "body": "872,539 VVV entered cooldown in seven days, equal to 2.7% of ending staked supply.\n\nCompleted UTC day: 2026-11-26.\n\nThe bot closes this issue when a fresh reading shows VVV entering cooldown over seven days at 1.5% or less of ending staked supply.",
       "open": true
     }
   }

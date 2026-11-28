@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastDay": "2026-11-26",
+  "lastDay": "2026-11-27",
   "sales": {
     "days": [
       {
@@ -2597,6 +2597,48 @@
         },
         "evidenceSha256": "03d983e2ea43478bfa4b21d1d1fcf8369acab99d4667692bbf80384f6429f1ea",
         "fundingEvidenceSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "date": "2026-11-27",
+        "fromBlock": 62736122,
+        "toBlock": 63168121,
+        "blockHash": "0x5811aad86b16a6dd7f7e89f5f7ccc053d80a13462dd5222099e036a005951153",
+        "pro": 3191,
+        "proplus": 338,
+        "max": 63,
+        "credits": 3589,
+        "unknown": 1,
+        "estimatedUsd": 451922,
+        "burnUsdc": 26647,
+        "confirmedBurnEvents": 7181,
+        "unknownReasons": {
+          "unrecognizedAmount": 1
+        },
+        "examples": {
+          "credits": "0xcfc2dc95b72c17ade5dfe9f06b61a443454fa223cfd5be73e129989acc4fdb63",
+          "pro": "0xa10399b1c6f8370088fbba1ddf6626a8411fc180909c144a6a7d06316d9a9dfd",
+          "proplus": "0x89155bfdcece8217b7017463e46488c2b713e5b58f0313d1d4b35723378c659f",
+          "max": "0xc284bc4a26d7f9ed89656089fb07555241769bc310666585bfb12c5e3994f0a3",
+          "unrecognizedAmount": "0xba53334d495ac1928dc74730733070b453f359eda68f9e2f5aab7aa26bf70a69"
+        },
+        "unpairedPoolBurns": 0,
+        "burnSales": 1003.9486448110388,
+        "burnMonthly": 0,
+        "burnOther": 0.11401384579948283,
+        "burnTx": 7182,
+        "raw": {
+          "salesVvv": "1003948644811038816943",
+          "monthlyVvv": "0",
+          "otherVvv": "114013845799482838",
+          "recognizedUsdc": "26963495000",
+          "unknownUsdc": "250000000",
+          "balanceChangeVvv": "1004062658656838299781",
+          "openingUsdc": "36162040596",
+          "incomingUsdc": "75000000000",
+          "closingUsdc": "83948545596"
+        },
+        "evidenceSha256": "47907b87a462cf8e4a1396d7b31d230964c73bfe52a09e65bebf0d668fa388af",
+        "fundingEvidenceSha256": "59fd29b1b04db3559451425bd6a975f298720d10bfcf7474b49622b7dd23c90f"
       }
     ],
     "reference": {
@@ -3759,8 +3801,8 @@
     }
   },
   "buybacks": {
-    "asOf": "2026-11-26",
-    "endBlock": 62736121,
+    "asOf": "2026-11-27",
+    "endBlock": 63168121,
     "cycles": [
       {
         "date": "2026-06-08",
